@@ -1,0 +1,298 @@
+# 易码网系统架构设计
+
+## 1. 架构概述
+
+### 1.1 架构原则
+- **微服务化**：核心功能模块化，独立部署和扩展
+- **容器化**：统一使用Docker容器技术
+- **云原生**：基于Kubernetes的容器编排
+- **API优先**：RESTful API设计，前后端分离
+- **安全第一**：多层安全防护机制
+- **高可用**：无单点故障，支持水平扩展
+
+### 1.2 技术栈选择
+
+#### 前端技术栈
+- **框架**：Next.js 14+ (React 18+)
+- **样式**：Tailwind CSS + Headless UI
+- **状态管理**：Zustand / React Query
+- **类型检查**：TypeScript
+- **构建工具**：Turbopack (Next.js内置)
+
+#### 后端技术栈
+- **主应用**：Next.js API Routes + Supabase
+- **部署编排器**：Node.js/Deno + Express/Hono
+- **数据库**：PostgreSQL (Supabase)
+- **缓存**：Redis
+- **消息队列**：Redis Pub/Sub / BullMQ
+
+#### 基础设施
+- **容器化**：Docker + Docker Compose
+- **编排**：Kubernetes
+- **CI/CD**：GitHub Actions
+- **监控**：Prometheus + Grafana
+- **日志**：ELK Stack (Elasticsearch + Logstash + Kibana)
+
+## 2. 整体架构图
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        用户层 (User Layer)                        │
+├─────────────────────────────────────────────────────────────────┤
+│  Web浏览器  │  移动浏览器  │  API客户端  │  管理后台  │  开发工具   │
+└─────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      CDN + 负载均衡层                             │
+├─────────────────────────────────────────────────────────────────┤
+│           CloudFlare CDN + Nginx Load Balancer                 │
+└─────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      应用网关层 (API Gateway)                     │
+├─────────────────────────────────────────────────────────────────┤
+│  认证授权  │  限流控制  │  路由转发  │  监控日志  │  安全防护    │
+└─────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
+│    主应用服务        │  │   部署编排服务       │  │    支付服务         │
+│   (Next.js App)     │  │ (Deployment Orch.)  │  │  (Payment Service)  │
+├─────────────────────┤  ├─────────────────────┤  ├─────────────────────┤
+│ • 用户管理          │  │ • Docker构建        │  │ • 支付处理          │
+│ • 源码市场          │  │ • K8s部署           │  │ • 分账管理          │
+│ • 项目管理          │  │ • 演示环境          │  │ • 积分系统          │
+│ • 审核系统          │  │ • 监控告警          │  │ • 财务报表          │
+└─────────────────────┘  └─────────────────────┘  └─────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      数据存储层 (Data Layer)                      │
+├─────────────────────────────────────────────────────────────────┤
+│  PostgreSQL  │  Redis缓存  │  文件存储  │  Docker Registry  │  K8s │
+│   (主数据库)  │   (缓存)    │ (Supabase) │    (镜像仓库)     │ 集群  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 3. 微服务架构设计
+
+### 3.1 服务拆分策略
+
+#### 主应用服务 (Main Application Service)
+- **职责**：用户界面、业务逻辑、数据管理
+- **技术**：Next.js + Supabase
+- **端口**：3000
+- **数据库**：PostgreSQL (Supabase)
+
+#### 部署编排服务 (Deployment Orchestrator Service)
+- **职责**：Docker构建、Kubernetes部署、演示环境管理
+- **技术**：Node.js/Deno + Express/Hono
+- **端口**：3001
+- **依赖**：Docker Engine, Kubernetes API
+
+#### 支付服务 (Payment Service)
+- **职责**：支付处理、分账管理、积分系统
+- **技术**：Node.js + Express
+- **端口**：3002
+- **数据库**：PostgreSQL (独立实例)
+
+#### AI服务 (AI Service)
+- **职责**：代码分析、Docker化建议、安全扫描
+- **技术**：Python + FastAPI
+- **端口**：3003
+- **依赖**：OpenAI API, 代码分析工具
+
+### 3.2 服务间通信
+
+#### 同步通信
+- **协议**：HTTP/HTTPS + RESTful API
+- **格式**：JSON
+- **认证**：JWT Token + API Key
+- **超时**：5秒
+
+#### 异步通信
+- **消息队列**：Redis Pub/Sub
+- **事件驱动**：发布/订阅模式
+- **重试机制**：指数退避算法
+- **死信队列**：处理失败消息
+
+## 4. 数据架构设计
+
+### 4.1 数据库设计原则
+- **读写分离**：主库写入，从库读取
+- **分库分表**：按业务模块和数据量分离
+- **数据一致性**：最终一致性模型
+- **备份策略**：每日全量备份 + 实时增量备份
+
+### 4.2 核心数据模型
+
+#### 用户相关表
+```sql
+-- 用户表
+users (id, email, username, role, status, created_at, updated_at)
+
+-- 用户配置表
+user_profiles (user_id, avatar, bio, github_url, website, preferences)
+
+-- 用户认证表
+user_auth (user_id, password_hash, mfa_secret, last_login, login_attempts)
+```
+
+#### 项目相关表
+```sql
+-- 项目表
+projects (id, seller_id, title, description, category, price, status, created_at)
+
+-- 项目文件表
+project_files (id, project_id, file_path, file_size, file_hash, storage_url)
+
+-- 项目标签表
+project_tags (project_id, tag_name)
+
+-- 项目评价表
+project_reviews (id, project_id, buyer_id, rating, comment, created_at)
+```
+
+#### 交易相关表
+```sql
+-- 订单表
+orders (id, buyer_id, project_id, amount, status, payment_method, created_at)
+
+-- 支付记录表
+payments (id, order_id, amount, currency, provider, transaction_id, status)
+
+-- 积分记录表
+credits (id, user_id, amount, type, description, created_at)
+```
+
+### 4.3 缓存策略
+- **用户会话**：Redis存储，TTL 24小时
+- **项目列表**：Redis缓存，TTL 1小时
+- **热门项目**：Redis缓存，TTL 30分钟
+- **搜索结果**：Redis缓存，TTL 15分钟
+
+## 5. 安全架构设计
+
+### 5.1 认证授权
+- **认证方式**：JWT Token + Refresh Token
+- **授权模型**：RBAC (基于角色的访问控制)
+- **Token有效期**：Access Token 1小时，Refresh Token 30天
+- **多因素认证**：TOTP + SMS
+
+### 5.2 API安全
+- **HTTPS强制**：所有API必须使用HTTPS
+- **CORS配置**：严格的跨域资源共享策略
+- **限流控制**：每用户每分钟100次请求
+- **输入验证**：所有输入数据严格验证
+
+### 5.3 容器安全
+- **镜像扫描**：使用Trivy扫描安全漏洞
+- **运行时安全**：非root用户运行容器
+- **网络隔离**：Kubernetes Network Policy
+- **资源限制**：CPU和内存限制
+
+### 5.4 数据安全
+- **加密存储**：敏感数据AES-256加密
+- **传输加密**：TLS 1.3
+- **访问控制**：最小权限原则
+- **审计日志**：所有操作记录日志
+
+## 6. 部署架构设计
+
+### 6.1 容器化策略
+```dockerfile
+# 主应用Dockerfile示例
+FROM node:18-alpine AS base
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+FROM base AS build
+COPY . .
+RUN npm run build
+
+FROM base AS runtime
+COPY --from=build /app/.next ./.next
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+### 6.2 Kubernetes部署
+```yaml
+# 主应用部署配置示例
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: easy-code-main
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: easy-code-main
+  template:
+    metadata:
+      labels:
+        app: easy-code-main
+    spec:
+      containers:
+      - name: main-app
+        image: easy-code/main:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+```
+
+### 6.3 监控和日志
+- **应用监控**：Prometheus + Grafana
+- **日志收集**：Fluentd + Elasticsearch + Kibana
+- **链路追踪**：Jaeger
+- **告警通知**：AlertManager + 钉钉/邮件
+
+## 7. 性能优化策略
+
+### 7.1 前端优化
+- **代码分割**：按路由和组件分割
+- **懒加载**：图片和组件懒加载
+- **CDN加速**：静态资源CDN分发
+- **缓存策略**：浏览器缓存 + Service Worker
+
+### 7.2 后端优化
+- **数据库优化**：索引优化、查询优化
+- **缓存策略**：多层缓存架构
+- **连接池**：数据库连接池管理
+- **异步处理**：耗时操作异步化
+
+### 7.3 基础设施优化
+- **负载均衡**：多实例负载均衡
+- **自动扩缩容**：基于CPU和内存使用率
+- **CDN优化**：全球CDN节点分布
+- **数据库优化**：读写分离、分库分表
+
+## 8. 灾难恢复和备份
+
+### 8.1 备份策略
+- **数据库备份**：每日全量 + 每小时增量
+- **文件备份**：实时同步到多个存储节点
+- **配置备份**：Git版本控制
+- **镜像备份**：多个Registry备份
+
+### 8.2 恢复策略
+- **RTO目标**：4小时内恢复服务
+- **RPO目标**：数据丢失不超过1小时
+- **故障转移**：自动故障检测和切换
+- **演练计划**：每季度灾难恢复演练
