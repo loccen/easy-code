@@ -164,17 +164,26 @@ export default function DashboardPage() {
                 快速操作
               </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left">
+                <button
+                  onClick={() => router.push('/projects')}
+                  className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                >
                   <div className="text-sm font-medium text-gray-900">浏览项目</div>
                   <div className="text-sm text-gray-500">查看平台上的所有项目</div>
                 </button>
                 {isSeller && (
-                  <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left">
+                  <button
+                    onClick={() => router.push('/seller/upload')}
+                    className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                  >
                     <div className="text-sm font-medium text-gray-900">上传项目</div>
                     <div className="text-sm text-gray-500">发布新的源码项目</div>
                   </button>
                 )}
-                <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left">
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                >
                   <div className="text-sm font-medium text-gray-900">个人设置</div>
                   <div className="text-sm text-gray-500">管理个人资料和偏好</div>
                 </button>
