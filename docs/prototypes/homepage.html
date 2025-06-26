@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>易码网 - 专业的源码交易平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <h1 class="text-2xl font-bold text-primary-600">易码网</h1>
+                    </div>
+                    <div class="hidden md:block ml-10">
+                        <div class="flex items-baseline space-x-4">
+                            <a href="#" class="text-gray-900 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">首页</a>
+                            <a href="#" class="text-gray-500 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">项目市场</a>
+                            <a href="#" class="text-gray-500 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">分类</a>
+                            <a href="#" class="text-gray-500 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">帮助</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 搜索框 -->
+                <div class="flex-1 max-w-lg mx-8">
+                    <div class="relative">
+                        <input type="text" placeholder="搜索项目、技术栈..." 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 用户菜单 -->
+                <div class="flex items-center space-x-4">
+                    <button class="text-gray-500 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">登录</button>
+                    <button class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">注册</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient text-white py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 class="text-4xl md:text-6xl font-bold mb-6">
+                专业的源码交易平台
+            </h1>
+            <p class="text-xl md:text-2xl mb-8 text-blue-100">
+                发现优质源码，一键部署验证，安全交易保障
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button class="bg-white text-primary-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                    浏览项目市场
+                </button>
+                <button class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-colors">
+                    成为卖家
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 特色功能 -->
+    <section class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">为什么选择易码网？</h2>
+                <p class="text-lg text-gray-600">专业、安全、高效的源码交易体验</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- 一键部署 -->
+                <div class="text-center p-6 card-hover bg-gray-50 rounded-xl">
+                    <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">一键部署验证</h3>
+                    <p class="text-gray-600">购买前可一键部署到演示环境，实时验证项目功能，降低购买风险</p>
+                </div>
+                
+                <!-- 双轨制上架 -->
+                <div class="text-center p-6 card-hover bg-gray-50 rounded-xl">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">双轨制上架</h3>
+                    <p class="text-gray-600">Docker化项目享受快速通道和双倍积分，AI辅助改造非Docker项目</p>
+                </div>
+                
+                <!-- 安全保障 -->
+                <div class="text-center p-6 card-hover bg-gray-50 rounded-xl">
+                    <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">安全交易保障</h3>
+                    <p class="text-gray-600">代码安全扫描，交易资金保障，完善的评价体系和争议处理机制</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 热门项目 -->
+    <section class="py-16 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900">热门项目</h2>
+                <a href="#" class="text-primary-600 hover:text-primary-700 font-medium">查看全部 →</a>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 项目卡片 1 -->
+                <div class="bg-white rounded-xl shadow-sm card-hover overflow-hidden">
+                    <img src="https://via.placeholder.com/400x200/3B82F6/FFFFFF?text=React+Admin" alt="项目截图" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">React</span>
+                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Docker化</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">React 管理后台系统</h3>
+                        <p class="text-gray-600 text-sm mb-4">完整的后台管理系统，包含用户管理、权限控制、数据统计等功能</p>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="flex text-yellow-400">
+                                    ★★★★★
+                                </div>
+                                <span class="text-sm text-gray-500">(23)</span>
+                            </div>
+                            <span class="text-lg font-bold text-primary-600">¥299</span>
+                        </div>
+                        <div class="mt-4 flex space-x-2">
+                            <button class="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                                立即购买
+                            </button>
+                            <button class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                                演示
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 项目卡片 2 -->
+                <div class="bg-white rounded-xl shadow-sm card-hover overflow-hidden">
+                    <img src="https://via.placeholder.com/400x200/10B981/FFFFFF?text=Vue+E-commerce" alt="项目截图" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Vue.js</span>
+                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Docker化</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Vue 电商平台</h3>
+                        <p class="text-gray-600 text-sm mb-4">现代化的电商平台，支持商品管理、订单处理、支付集成</p>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="flex text-yellow-400">
+                                    ★★★★☆
+                                </div>
+                                <span class="text-sm text-gray-500">(18)</span>
+                            </div>
+                            <span class="text-lg font-bold text-primary-600">¥499</span>
+                        </div>
+                        <div class="mt-4 flex space-x-2">
+                            <button class="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                                立即购买
+                            </button>
+                            <button class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                                演示
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 项目卡片 3 -->
+                <div class="bg-white rounded-xl shadow-sm card-hover overflow-hidden">
+                    <img src="https://via.placeholder.com/400x200/F59E0B/FFFFFF?text=Node.js+API" alt="项目截图" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">Node.js</span>
+                            <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded">AI改造</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Node.js RESTful API</h3>
+                        <p class="text-gray-600 text-sm mb-4">完整的后端API服务，包含认证、数据库操作、文件上传等</p>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="flex text-yellow-400">
+                                    ★★★★★
+                                </div>
+                                <span class="text-sm text-gray-500">(31)</span>
+                            </div>
+                            <span class="text-lg font-bold text-primary-600">¥199</span>
+                        </div>
+                        <div class="mt-4 flex space-x-2">
+                            <button class="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                                立即购买
+                            </button>
+                            <button class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                                演示
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 统计数据 -->
+    <section class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                <div>
+                    <div class="text-3xl font-bold text-primary-600 mb-2">1,234</div>
+                    <div class="text-gray-600">优质项目</div>
+                </div>
+                <div>
+                    <div class="text-3xl font-bold text-primary-600 mb-2">5,678</div>
+                    <div class="text-gray-600">注册用户</div>
+                </div>
+                <div>
+                    <div class="text-3xl font-bold text-primary-600 mb-2">9,012</div>
+                    <div class="text-gray-600">成功交易</div>
+                </div>
+                <div>
+                    <div class="text-3xl font-bold text-primary-600 mb-2">99.8%</div>
+                    <div class="text-gray-600">用户满意度</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">易码网</h3>
+                    <p class="text-gray-400">专业的源码交易平台，为开发者提供优质的源码资源和便捷的交易体验。</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold mb-4">产品</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-white">项目市场</a></li>
+                        <li><a href="#" class="hover:text-white">一键部署</a></li>
+                        <li><a href="#" class="hover:text-white">积分系统</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold mb-4">支持</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-white">帮助中心</a></li>
+                        <li><a href="#" class="hover:text-white">联系我们</a></li>
+                        <li><a href="#" class="hover:text-white">服务条款</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold mb-4">关注我们</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white">GitHub</a>
+                        <a href="#" class="text-gray-400 hover:text-white">微信</a>
+                        <a href="#" class="text-gray-400 hover:text-white">微博</a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
+                <p>&copy; 2024 易码网. 保留所有权利.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
