@@ -63,9 +63,9 @@ export default function SellerProjectsPage() {
       
       const { error } = await supabase
         .from('projects')
-        .update({ 
+        .update({
           status: newStatus,
-          published_at: newStatus === 'published' ? new Date().toISOString() : null
+          published_at: newStatus === 'approved' ? new Date().toISOString() : null
         })
         .eq('id', projectId);
 
@@ -105,10 +105,10 @@ export default function SellerProjectsPage() {
   const getStatusText = (status: string) => {
     const statusMap: Record<string, string> = {
       draft: '草稿',
-      pending: '待审核',
-      published: '已发布',
+      pending_review: '待审核',
+      approved: '已发布',
       rejected: '已拒绝',
-      suspended: '已暂停',
+      archived: '已归档',
     };
     return statusMap[status] || status;
   };
@@ -116,10 +116,10 @@ export default function SellerProjectsPage() {
   const getStatusColor = (status: string) => {
     const colorMap: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-      published: 'bg-green-100 text-green-800',
+      pending_review: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
-      suspended: 'bg-orange-100 text-orange-800',
+      archived: 'bg-orange-100 text-orange-800',
     };
     return colorMap[status] || 'bg-gray-100 text-gray-800';
   };
@@ -263,13 +263,13 @@ export default function SellerProjectsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleStatusChange(project.id, 'pending')}
+                        onClick={() => handleStatusChange(project.id, 'pending_review')}
                       >
                         提交审核
                       </Button>
                     )}
-                    
-                    {project.status === 'published' && (
+
+                    {project.status === 'approved' && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -278,12 +278,12 @@ export default function SellerProjectsPage() {
                         下架
                       </Button>
                     )}
-                    
+
                     {project.status === 'rejected' && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleStatusChange(project.id, 'pending')}
+                        onClick={() => handleStatusChange(project.id, 'pending_review')}
                       >
                         重新提交
                       </Button>
