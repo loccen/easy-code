@@ -127,6 +127,7 @@ main() {
     execute_sql "setup-database.sql" "数据库表结构创建"
     execute_sql "setup-rls.sql" "行级安全策略设置"
     execute_sql "setup-auth-config.sql" "认证配置和触发器"
+    execute_sql "setup-storage.sql" "存储桶和策略配置"
     
     # 配置认证设置
     configure_auth
