@@ -1,3 +1,5 @@
+import DatabaseTest from '@/components/DatabaseTest';
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -54,7 +56,7 @@ export default function Home() {
         </div>
 
         {/* Status Section */}
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-8 text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">项目状态</h2>
           <p className="text-lg text-green-600 font-semibold mb-2">✅ 设计阶段完成</p>
           <p className="text-gray-600 mb-4">正在进行开发实施阶段</p>
@@ -63,6 +65,12 @@ export default function Home() {
               当前正在搭建基础架构，包括用户认证系统、项目管理功能等核心模块
             </p>
           </div>
+        </div>
+
+        {/* Database Test Section */}
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">数据库连接测试</h2>
+          <DatabaseTest />
         </div>
       </div>
     </div>
