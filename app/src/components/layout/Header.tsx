@@ -137,6 +137,18 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                           我的项目
                         </Link>
                       )}
+                      {isAdmin && (
+                        <>
+                          <hr className="my-1" />
+                          <Link
+                            href="/admin/categories"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            分类管理
+                          </Link>
+                        </>
+                      )}
                       <hr className="my-1" />
                       <button
                         onClick={() => {
