@@ -29,7 +29,7 @@
 #### 基础设施
 - **容器化**：Docker + Docker Compose
 - **编排**：Kubernetes
-- **CI/CD**：GitHub Actions
+- **CI/CD**：GitLab CI/CD
 - **监控**：Prometheus + Grafana
 - **日志**：ELK Stack (Elasticsearch + Logstash + Kibana)
 
@@ -51,22 +51,21 @@
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      应用网关层 (API Gateway)                     │
+│                    主应用服务 (Next.js App)                       │
 ├─────────────────────────────────────────────────────────────────┤
-│  认证授权  │  限流控制  │  路由转发  │  监控日志  │  安全防护    │
+│ • 用户认证和管理    • 源码市场和项目管理    • 订单交易处理      │
+│ • 审核系统         • 积分系统(简化版)      • 支付接口(预留)    │
+│ • 评价系统         • 文件管理             • 管理后台          │
 └─────────────────────────────────────────────────────────────────┘
                                     │
-                    ┌───────────────┼───────────────┐
-                    ▼               ▼               ▼
-┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
-│    主应用服务        │  │   部署编排服务       │  │    支付服务         │
-│   (Next.js App)     │  │ (Deployment Orch.)  │  │  (Payment Service)  │
-├─────────────────────┤  ├─────────────────────┤  ├─────────────────────┤
-│ • 用户管理          │  │ • Docker构建        │  │ • 支付处理          │
-│ • 源码市场          │  │ • K8s部署           │  │ • 分账管理          │
-│ • 项目管理          │  │ • 演示环境          │  │ • 积分系统          │
-│ • 审核系统          │  │ • 监控告警          │  │ • 财务报表          │
-└─────────────────────┘  └─────────────────────┘  └─────────────────────┘
+                                    │ HTTP API调用
+                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   部署编排服务 (Node.js)                          │
+├─────────────────────────────────────────────────────────────────┤
+│ • Docker镜像构建    • Kubernetes部署     • 演示环境管理        │
+│ • 容器生命周期管理  • 资源监控           • 自动清理            │
+└─────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -77,47 +76,79 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 3. 微服务架构设计
+## 3. 简化架构设计 (MVP版本)
 
 ### 3.1 服务拆分策略
 
 #### 主应用服务 (Main Application Service)
-- **职责**：用户界面、业务逻辑、数据管理
+- **职责**：用户界面、业务逻辑、数据管理、支付处理、积分系统
 - **技术**：Next.js + Supabase
 - **端口**：3000
 - **数据库**：PostgreSQL (Supabase)
+- **集成功能**：
+  - 用户认证和管理
+  - 项目市场和管理
+  - 订单和交易处理
+  - 积分系统（简化版）
+  - 基础支付集成（预留接口）
 
 #### 部署编排服务 (Deployment Orchestrator Service)
 - **职责**：Docker构建、Kubernetes部署、演示环境管理
-- **技术**：Node.js/Deno + Express/Hono
+- **技术**：Node.js + Express
 - **端口**：3001
 - **依赖**：Docker Engine, Kubernetes API
+- **通信方式**：接收主应用的HTTP请求
 
-#### 支付服务 (Payment Service)
-- **职责**：支付处理、分账管理、积分系统
-- **技术**：Node.js + Express
-- **端口**：3002
-- **数据库**：PostgreSQL (独立实例)
+### 3.2 服务间通信 (简化版)
 
-#### AI服务 (AI Service)
-- **职责**：代码分析、Docker化建议、安全扫描
-- **技术**：Python + FastAPI
-- **端口**：3003
-- **依赖**：OpenAI API, 代码分析工具
-
-### 3.2 服务间通信
-
-#### 同步通信
+#### 主应用 → 部署编排服务
 - **协议**：HTTP/HTTPS + RESTful API
 - **格式**：JSON
-- **认证**：JWT Token + API Key
-- **超时**：5秒
+- **认证**：内部API Key
+- **超时**：30秒（考虑到Docker构建时间）
+- **重试机制**：简单重试（最多3次）
 
-#### 异步通信
-- **消息队列**：Redis Pub/Sub
-- **事件驱动**：发布/订阅模式
-- **重试机制**：指数退避算法
-- **死信队列**：处理失败消息
+#### 通信场景
+1. **创建演示环境**：主应用发送部署请求
+2. **查询部署状态**：主应用轮询部署进度
+3. **销毁环境**：主应用发送销毁请求
+4. **健康检查**：定期检查服务可用性
+
+### 3.3 AI辅助改造流程 (简化版)
+
+#### 人工辅助模式
+- **触发条件**：卖家上传非Docker化项目
+- **处理流程**：
+  1. 系统标记项目为"待改造"状态
+  2. 技术人员下载项目到本地
+  3. 使用AI编程工具（如GitHub Copilot、Cursor等）辅助生成Dockerfile
+  4. 本地测试Docker构建和运行
+  5. 将改造后的项目重新上传
+  6. 进入正常审核流程
+
+#### 预留扩展
+- **自动化接口**：预留API接口供未来AI服务集成
+- **改造记录**：记录改造过程和结果，用于后续优化
+- **模板库**：积累常见项目类型的Docker化模板
+
+### 3.4 支付系统集成 (预留设计)
+
+#### MVP阶段
+- **支付方式**：暂时支持单一支付渠道（如支付宝）
+- **集成方式**：在主应用中直接集成支付SDK
+- **功能范围**：基础的支付和退款功能
+- **积分系统**：简化版积分记录和余额管理
+
+#### 预留扩展
+- **多支付渠道**：预留适配器模式接口
+- **自动分账**：预留卖家收益分配功能
+- **财务报表**：预留财务数据统计接口
+- **风控系统**：预留支付风险控制模块
+
+#### 实施建议
+1. **第一阶段**：实现基础支付功能，满足MVP需求
+2. **第二阶段**：根据业务发展需要，逐步完善支付功能
+3. **第三阶段**：考虑拆分为独立的支付微服务
 
 ## 4. 数据架构设计
 
@@ -200,9 +231,11 @@ credits (id, user_id, amount, type, description, created_at)
 - **访问控制**：最小权限原则
 - **审计日志**：所有操作记录日志
 
-## 6. 部署架构设计
+## 6. 部署架构设计 (简化版)
 
 ### 6.1 容器化策略
+
+#### 主应用容器
 ```dockerfile
 # 主应用Dockerfile示例
 FROM node:18-alpine AS base
@@ -220,15 +253,29 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-### 6.2 Kubernetes部署
+#### 部署编排服务容器
+```dockerfile
+# 部署编排服务Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3001
+CMD ["npm", "start"]
+```
+
+### 6.2 Kubernetes部署 (简化版)
+
+#### 主应用部署
 ```yaml
-# 主应用部署配置示例
+# 主应用部署配置
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: easy-code-main
 spec:
-  replicas: 3
+  replicas: 2  # 简化为2个副本
   selector:
     matchLabels:
       app: easy-code-main
@@ -248,6 +295,8 @@ spec:
             secretKeyRef:
               name: db-secret
               key: url
+        - name: DEPLOYMENT_SERVICE_URL
+          value: "http://deployment-service:3001"
         resources:
           requests:
             memory: "256Mi"
@@ -255,6 +304,44 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
+---
+# 部署编排服务
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-service
+spec:
+  replicas: 1  # 单实例即可
+  selector:
+    matchLabels:
+      app: deployment-service
+  template:
+    metadata:
+      labels:
+        app: deployment-service
+    spec:
+      containers:
+      - name: deployment-service
+        image: easy-code/deployment:latest
+        ports:
+        - containerPort: 3001
+        env:
+        - name: DOCKER_HOST
+          value: "unix:///var/run/docker.sock"
+        volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
 ```
 
 ### 6.3 监控和日志

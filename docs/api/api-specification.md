@@ -308,9 +308,9 @@ GET /api/v1/orders/{order_id}/download
 Authorization: Bearer <jwt_token>
 ```
 
-## 7. 支付系统 API
+## 7. 支付系统 API (简化版/预留)
 
-### 7.1 创建支付
+### 7.1 创建支付 (预留接口)
 ```http
 POST /api/v1/payments
 Authorization: Bearer <jwt_token>
@@ -318,26 +318,23 @@ Content-Type: application/json
 
 {
   "order_id": "uuid",
-  "payment_method": "stripe",
+  "payment_method": "alipay",  // 初期只支持支付宝
   "return_url": "https://example.com/success",
   "cancel_url": "https://example.com/cancel"
 }
 ```
 
-### 7.2 确认支付
-```http
-POST /api/v1/payments/{payment_id}/confirm
-Authorization: Bearer <jwt_token>
-Content-Type: application/json
+**注意**: MVP阶段暂时不实现，预留接口设计
 
-{
-  "payment_intent_id": "pi_xxx"
-}
+### 7.2 支付状态查询 (预留)
+```http
+GET /api/v1/payments/{payment_id}
+Authorization: Bearer <jwt_token>
 ```
 
-### 7.3 支付回调（Webhook）
+### 7.3 支付回调 (预留)
 ```http
-POST /api/v1/payments/webhook/{provider}
+POST /api/v1/payments/webhook/alipay
 Content-Type: application/json
 X-Webhook-Signature: <signature>
 
@@ -346,6 +343,11 @@ X-Webhook-Signature: <signature>
   "data": {}
 }
 ```
+
+**MVP实施建议**:
+- 第一阶段：手动处理支付，通过管理后台确认
+- 第二阶段：集成单一支付渠道
+- 第三阶段：实现完整的支付系统
 
 ## 8. 积分系统 API
 
@@ -392,7 +394,7 @@ Content-Type: application/json
 
 ## 9. 部署服务 API
 
-### 9.1 创建演示部署
+### 9.1 创建演示部署 (主应用 → 部署编排服务)
 ```http
 POST /api/v1/deployments/demo
 Authorization: Bearer <jwt_token>
@@ -400,7 +402,20 @@ Content-Type: application/json
 
 {
   "project_id": "uuid",
-  "duration_hours": 2
+  "duration_hours": 2,
+  "user_id": "uuid"
+}
+```
+
+**响应：**
+```json
+{
+  "success": true,
+  "data": {
+    "deployment_id": "uuid",
+    "status": "pending",
+    "estimated_time": "5-10分钟"
+  }
 }
 ```
 
@@ -408,6 +423,20 @@ Content-Type: application/json
 ```http
 GET /api/v1/deployments/{deployment_id}
 Authorization: Bearer <jwt_token>
+```
+
+**响应：**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "status": "running",
+    "environment_url": "https://demo-xxx.easy-code.com",
+    "expires_at": "2024-01-01T12:00:00Z",
+    "logs": "构建成功，容器正在运行..."
+  }
+}
 ```
 
 ### 9.3 延长演示时间
@@ -427,19 +456,50 @@ DELETE /api/v1/deployments/{deployment_id}
 Authorization: Bearer <jwt_token>
 ```
 
-### 9.5 生成部署脚本
+### 9.5 部署编排服务内部API
+
+#### 构建镜像
 ```http
-POST /api/v1/deployments/script
-Authorization: Bearer <jwt_token>
+POST /build
 Content-Type: application/json
+X-API-Key: <internal_api_key>
 
 {
   "project_id": "uuid",
-  "platform": "aws",
-  "config": {
-    "region": "us-west-2",
-    "instance_type": "t3.micro"
+  "dockerfile_content": "...",
+  "build_context": "base64_encoded_files"
+}
+```
+
+#### 部署到K8s
+```http
+POST /deploy
+Content-Type: application/json
+X-API-Key: <internal_api_key>
+
+{
+  "deployment_id": "uuid",
+  "image": "registry.easy-code.com/project:tag",
+  "duration_hours": 2,
+  "resources": {
+    "cpu": "100m",
+    "memory": "128Mi"
   }
+}
+```
+
+#### 健康检查
+```http
+GET /health
+```
+
+**响应：**
+```json
+{
+  "status": "healthy",
+  "docker_status": "connected",
+  "k8s_status": "connected",
+  "active_deployments": 5
 }
 ```
 
