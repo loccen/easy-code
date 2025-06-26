@@ -1,5 +1,6 @@
 -- 易码网存储配置脚本
 -- 创建存储桶和相关策略
+-- 注意：此脚本已在2025-06-26成功执行并验证
 
 -- 创建用户上传存储桶
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
