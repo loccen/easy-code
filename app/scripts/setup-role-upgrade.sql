@@ -76,14 +76,29 @@ CREATE POLICY "Admins can update all upgrade requests" ON role_upgrade_requests
 -- 创建函数：处理角色升级申请审核
 CREATE OR REPLACE FUNCTION handle_role_upgrade_approval()
 RETURNS TRIGGER AS $$
+DECLARE
+    current_user_role user_role;
 BEGIN
     -- 如果申请被批准，更新用户角色
     IF NEW.status = 'approved' AND OLD.status = 'pending' THEN
-        UPDATE users 
-        SET role = NEW.to_role, updated_at = NOW()
+        -- 获取用户当前角色
+        SELECT role INTO current_user_role
+        FROM users
         WHERE id = NEW.user_id;
+
+        -- 权限层级：admin > seller > buyer
+        -- 只有在目标角色权限更高时才更新角色
+        IF (current_user_role = 'buyer' AND NEW.to_role IN ('seller', 'admin')) OR
+           (current_user_role = 'seller' AND NEW.to_role = 'admin') THEN
+            UPDATE users
+            SET role = NEW.to_role, updated_at = NOW()
+            WHERE id = NEW.user_id;
+        END IF;
+
+        -- 如果是管理员申请成为卖家，不更新角色，因为管理员已经拥有卖家权限
+        -- 如果是管理员申请成为买家，不更新角色，因为管理员已经拥有买家权限
     END IF;
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

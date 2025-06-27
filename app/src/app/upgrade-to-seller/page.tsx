@@ -9,7 +9,7 @@ import { createRoleUpgradeRequest, hasPendingUpgradeRequest, getUserRoleUpgradeR
 import { RoleUpgradeRequest } from '@/types';
 
 export default function UpgradeToSellerPage() {
-  const { user, loading: authLoading, isSeller } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +125,35 @@ export default function UpgradeToSellerPage() {
     return null;
   }
 
-  if (isSeller) {
+  // 管理员拥有最高权限，不需要升级
+  if (isAdmin) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <Card className="p-8 text-center">
+            <div className="text-purple-600 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">您已拥有最高权限</h1>
+            <p className="text-gray-600 mb-6">作为管理员，您已经拥有包括卖家在内的所有权限，无需申请升级。</p>
+            <div className="flex gap-4 justify-center">
+              <Button onClick={() => router.push('/seller/upload')}>
+                上传项目
+              </Button>
+              <Button variant="outline" onClick={() => router.push('/admin/categories')}>
+                管理员后台
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // 卖家已经拥有卖家权限
+  if (user?.role === 'seller') {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-8">
