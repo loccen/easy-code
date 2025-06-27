@@ -19,7 +19,7 @@ export async function getPublishedProjects(options?: {
       category:categories(name, slug),
       seller:users(username, email)
     `, { count: 'exact' })
-    .eq('status', 'published');
+    .eq('status', 'approved');
 
   // 分类筛选
   if (options?.categoryId) {
@@ -69,7 +69,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
       seller:users(username, email)
     `)
     .eq('id', id)
-    .eq('status', 'published')
+    .eq('status', 'approved')
     .single();
 
   if (error) {
@@ -169,7 +169,7 @@ export async function updateProjectStatus(id: string, status: string): Promise<P
   };
 
   // 如果状态是发布，设置发布时间
-  if (status === 'published') {
+  if (status === 'approved') {
     updateData.published_at = new Date().toISOString();
   }
 
@@ -227,7 +227,7 @@ export async function getPopularProjects(limit: number = 10): Promise<Project[]>
       category:categories(name, slug),
       seller:users(username, email)
     `)
-    .eq('status', 'published')
+    .eq('status', 'approved')
     .order('download_count', { ascending: false })
     .limit(limit);
 
@@ -250,7 +250,7 @@ export async function getFeaturedProjects(limit: number = 10): Promise<Project[]
       category:categories(name, slug),
       seller:users(username, email)
     `)
-    .eq('status', 'published')
+    .eq('status', 'approved')
     .eq('featured', true)
     .or(`featured_until.is.null,featured_until.gt.${new Date().toISOString()}`)
     .order('created_at', { ascending: false })
@@ -275,7 +275,7 @@ export async function getLatestProjects(limit: number = 10): Promise<Project[]> 
       category:categories(name, slug),
       seller:users(username, email)
     `)
-    .eq('status', 'published')
+    .eq('status', 'approved')
     .order('published_at', { ascending: false })
     .limit(limit);
 
@@ -305,7 +305,7 @@ export async function searchProjects(query: string, options?: {
       category:categories(name, slug),
       seller:users(username, email)
     `, { count: 'exact' })
-    .eq('status', 'published');
+    .eq('status', 'approved');
 
   // 文本搜索
   if (query.trim()) {

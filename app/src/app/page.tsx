@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import DatabaseTest from '@/components/DatabaseTest';
 import { Layout } from '@/components/layout';
 import { Button, Card, CardHeader, CardContent, Badge } from '@/components/ui';
@@ -16,12 +17,16 @@ export default function Home() {
               专业的源码交易平台，为开发者提供安全、高效的源码交易体验
             </p>
             <div className="flex gap-4 justify-center">
-              <Button size="lg">
-                开始探索
-              </Button>
-              <Button variant="outline" size="lg">
-                了解更多
-              </Button>
+              <Link href="/projects">
+                <Button size="lg">
+                  开始探索
+                </Button>
+              </Link>
+              <Link href="/search">
+                <Button variant="outline" size="lg">
+                  高级搜索
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

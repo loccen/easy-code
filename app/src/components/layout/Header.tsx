@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useAuthStore } from '@/stores/authStore';
-import { Button, Avatar, Badge } from '@/components/ui';
+import { Button, Avatar, Badge, Input } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 export interface HeaderProps {
@@ -16,6 +16,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
   const { signOut } = useAuthStore();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleSignOut = async () => {
     try {
@@ -23,6 +24,14 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       router.push('/');
     } catch (error) {
       console.error('登出失败:', error);
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
     }
   };
 
@@ -62,6 +71,26 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
               </Link>
             ))}
           </nav>
+
+          {/* Search Bar */}
+          <div className="hidden lg:flex flex-1 max-w-lg mx-8">
+            <form onSubmit={handleSearch} className="w-full">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="搜索项目、技术栈..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+            </form>
+          </div>
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
@@ -128,6 +157,16 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                       >
                         设置
                       </Link>
+                      {/* 买家升级为卖家 */}
+                      {user?.role === 'buyer' && (
+                        <Link
+                          href="/upgrade-to-seller"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          申请成为卖家
+                        </Link>
+                      )}
                       {isSeller && (
                         <Link
                           href="/seller/projects"
@@ -146,6 +185,13 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                             onClick={() => setIsMenuOpen(false)}
                           >
                             分类管理
+                          </Link>
+                          <Link
+                            href="/admin/role-upgrades"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            角色升级管理
                           </Link>
                         </>
                       )}

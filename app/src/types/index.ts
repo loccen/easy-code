@@ -29,6 +29,29 @@ export interface UserProfile {
   updated_at: string;
 }
 
+// 角色升级相关类型
+export type UpgradeRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface RoleUpgradeRequest {
+  id: string;
+  user_id: string;
+  from_role: UserRole;
+  to_role: UserRole;
+  status: UpgradeRequestStatus;
+  reason: string;
+  experience?: string;
+  portfolio_url?: string;
+  github_url?: string;
+  admin_comment?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  created_at: string;
+  updated_at: string;
+  // 关联数据
+  user?: User;
+  reviewer?: User;
+}
+
 // 项目相关类型
 export type ProjectStatus = 'draft' | 'pending_review' | 'approved' | 'rejected' | 'archived';
 
