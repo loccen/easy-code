@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
 import { Card, Loading } from '@/components/ui';
 import { Category } from '@/types';
@@ -38,20 +39,22 @@ export default function CategoriesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center py-12">
+          <Loading />
+        </div>
+      </Layout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+      <Layout>
+        <div className="text-center py-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">加载失败</h2>
           <p className="text-gray-600">{error}</p>
         </div>
-      </div>
+      </Layout>
     );
   }
 
@@ -61,8 +64,7 @@ export default function CategoriesPage() {
     categories.filter(cat => cat.parent_id === parentId);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <Layout>
         {/* 页面标题 */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-gray-900">项目分类</h1>
@@ -180,7 +182,6 @@ export default function CategoriesPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </Layout>
   );
 }

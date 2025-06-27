@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/stores/authStore';
+import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
 import { Button, Card, Loading } from '@/components/ui';
 import { Project } from '@/types';
@@ -143,9 +144,11 @@ export default function SellerProjectsPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center py-12">
+          <Loading />
+        </div>
+      </Layout>
     );
   }
 
@@ -154,8 +157,7 @@ export default function SellerProjectsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <Layout>
         {/* 页面标题 */}
         <div className="mb-8 flex justify-between items-center">
           <div>
@@ -346,7 +348,6 @@ export default function SellerProjectsPage() {
             ))}
           </div>
         )}
-      </div>
-    </div>
+    </Layout>
   );
 }

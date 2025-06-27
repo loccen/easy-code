@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/stores/authStore';
+import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
 import { getActiveCategories } from '@/lib/categories';
 import { Button, Card, Input, Loading } from '@/components/ui';
@@ -207,9 +208,11 @@ export default function ProjectUploadPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center py-12">
+          <Loading />
+        </div>
+      </Layout>
     );
   }
 
@@ -223,8 +226,8 @@ export default function ProjectUploadPage() {
     categories.filter(cat => cat.parent_id === parentId);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <Layout>
+      <div className="max-w-4xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">上传项目</h1>
@@ -525,6 +528,6 @@ export default function ProjectUploadPage() {
           </form>
         </Card>
       </div>
-    </div>
+    </Layout>
   );
 }

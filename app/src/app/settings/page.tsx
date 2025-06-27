@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useAuthStore } from '@/stores/authStore';
+import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
 import { Button, Card, Input, Loading } from '@/components/ui';
 
@@ -165,8 +166,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <Layout>
+      <div className="max-w-4xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">账户设置</h1>
@@ -360,6 +361,6 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
