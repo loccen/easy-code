@@ -177,13 +177,78 @@ export default function CategoriesManagePage() {
   };
 
   const handleDelete = async (category: Category) => {
-    if (!confirm(`确定要删除分类"${category.name}"吗？此操作不可撤销。`)) {
-      return;
-    }
-
     try {
       setError('');
-      
+
+      // 首先检查是否有项目使用该分类
+      const { data: projects, error: checkError } = await supabase
+        .from('projects')
+        .select('id, title')
+        .eq('category_id', category.id);
+
+      if (checkError) throw checkError;
+
+      // 检查是否有子分类
+      const { data: subCategories, error: subError } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('parent_id', category.id);
+
+      if (subError) throw subError;
+
+      // 如果有依赖项目或子分类，显示详细信息并询问用户
+      if (projects && projects.length > 0) {
+        const projectNames = projects.slice(0, 3).map(p => p.title).join('、');
+        const moreText = projects.length > 3 ? `等${projects.length}个项目` : '';
+
+        if (!confirm(
+          `分类"${category.name}"正在被以下项目使用：${projectNames}${moreText}\n\n` +
+          `删除此分类将导致这些项目失去分类信息。\n` +
+          `建议先将这些项目移动到其他分类，或者禁用此分类而不是删除。\n\n` +
+          `确定要强制删除吗？`
+        )) {
+          return;
+        }
+      }
+
+      if (subCategories && subCategories.length > 0) {
+        const subNames = subCategories.map(c => c.name).join('、');
+
+        if (!confirm(
+          `分类"${category.name}"包含以下子分类：${subNames}\n\n` +
+          `删除此分类将同时删除所有子分类。\n\n` +
+          `确定要继续吗？`
+        )) {
+          return;
+        }
+      }
+
+      // 最终确认
+      if (!confirm(`确定要删除分类"${category.name}"吗？此操作不可撤销。`)) {
+        return;
+      }
+
+      // 如果有项目使用该分类，先将项目的分类设为null
+      if (projects && projects.length > 0) {
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update({ category_id: null })
+          .eq('category_id', category.id);
+
+        if (updateError) throw updateError;
+      }
+
+      // 如果有子分类，先删除子分类
+      if (subCategories && subCategories.length > 0) {
+        const { error: deleteSubError } = await supabase
+          .from('categories')
+          .delete()
+          .eq('parent_id', category.id);
+
+        if (deleteSubError) throw deleteSubError;
+      }
+
+      // 最后删除分类本身
       const { error } = await supabase
         .from('categories')
         .delete()
