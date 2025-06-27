@@ -4,6 +4,7 @@ import { useAuth } from '@/stores/authStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user, loading, isAuthenticated, isAdmin, isSeller, isBuyer } = useAuth();
@@ -44,8 +45,30 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">易码网</h1>
+              <Link href="/" className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">易</span>
+                </div>
+                <h1 className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors">易码网</h1>
+              </Link>
             </div>
+
+            {/* 中间导航菜单 */}
+            <div className="hidden md:flex items-center space-x-6">
+              <Link href="/projects" className="text-gray-600 hover:text-gray-900 transition-colors">
+                项目市场
+              </Link>
+              <Link href="/categories" className="text-gray-600 hover:text-gray-900 transition-colors">
+                分类
+              </Link>
+              <Link href="/profile" className="text-gray-600 hover:text-gray-900 transition-colors">
+                个人资料
+              </Link>
+              <Link href="/settings" className="text-gray-600 hover:text-gray-900 transition-colors">
+                设置
+              </Link>
+            </div>
+
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
                 欢迎，{user.profile?.first_name || user.username}

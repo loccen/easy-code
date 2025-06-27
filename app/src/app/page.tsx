@@ -1,12 +1,11 @@
 import Link from 'next/link';
-import DatabaseTest from '@/components/DatabaseTest';
 import { Layout } from '@/components/layout';
-import { Button, Card, CardHeader, CardContent, Badge } from '@/components/ui';
+import { Button, Card, CardContent } from '@/components/ui';
 
 export default function Home() {
   return (
     <Layout>
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 px-4 sm:px-6 lg:px-8 pt-8">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-16">
         <div className="container mx-auto py-16">
           {/* Hero Section */}
           <div className="text-center mb-16">
@@ -33,7 +32,8 @@ export default function Home() {
       </div>
 
       {/* Features Section */}
-      <div className="grid md:grid-cols-3 gap-8 mb-16">
+      <div className="py-16">
+        <div className="grid md:grid-cols-3 gap-8">
         <Card hover>
           <CardContent>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
@@ -69,33 +69,12 @@ export default function Home() {
             <p className="text-gray-600">创新的积分激励机制，鼓励优质内容创作和分享</p>
           </CardContent>
         </Card>
+        </div>
       </div>
 
-      {/* Status Section */}
-      <Card className="text-center mb-8">
-        <CardContent>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">项目状态</h2>
-          <div className="flex justify-center mb-4">
-            <Badge variant="success" size="lg">✅ 设计阶段完成</Badge>
-          </div>
-          <p className="text-gray-600 mb-4">正在进行开发实施阶段</p>
-          <div className="bg-gray-100 rounded-lg p-4">
-            <p className="text-sm text-gray-600">
-              当前正在搭建基础架构，包括用户认证系统、项目管理功能等核心模块
-            </p>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Database Test Section */}
-      <Card className="mt-8">
-        <CardHeader>
-          <h2 className="text-2xl font-bold text-gray-900">数据库连接测试</h2>
-        </CardHeader>
-        <CardContent>
-          <DatabaseTest />
-        </CardContent>
-      </Card>
+
+
     </Layout>
   );
 }
