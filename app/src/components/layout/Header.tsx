@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useAuthStore } from '@/stores/authStore';
@@ -17,6 +17,24 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 处理点击外部区域关闭下拉菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   const handleSignOut = async () => {
     try {
@@ -96,15 +114,19 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
           <div className="flex items-center space-x-4">
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-3">
-                {/* 角色标识 */}
+                {/* 角色标识 - 只显示最高权限 */}
                 <div className="flex items-center space-x-2">
-                  {isAdmin && <Badge variant="primary" size="sm">管理员</Badge>}
-                  {isSeller && <Badge variant="success" size="sm">卖家</Badge>}
-                  <Badge variant="outline" size="sm">买家</Badge>
+                  {isAdmin ? (
+                    <Badge variant="primary" size="sm">管理员</Badge>
+                  ) : user?.role === 'seller' ? (
+                    <Badge variant="success" size="sm">卖家</Badge>
+                  ) : (
+                    <Badge variant="outline" size="sm">买家</Badge>
+                  )}
                 </div>
 
                 {/* 用户菜单 */}
-                <div className="relative">
+                <div className="relative" ref={menuRef}>
                   <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
