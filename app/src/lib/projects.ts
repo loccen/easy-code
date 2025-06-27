@@ -203,6 +203,166 @@ export async function incrementProjectViews(id: string): Promise<void> {
 }
 
 /**
+ * 管理员获取所有项目列表
+ */
+export async function getAllProjectsForAdmin(options?: {
+  status?: string;
+  categoryId?: string;
+  sellerId?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: 'created_at' | 'updated_at' | 'price' | 'rating_average' | 'download_count' | 'view_count';
+  sortOrder?: 'asc' | 'desc';
+}): Promise<{ projects: Project[]; total: number }> {
+  let query = supabase
+    .from('projects')
+    .select(`
+      *,
+      category:categories(name, slug),
+      seller:users(username, email)
+    `, { count: 'exact' });
+
+  // 状态筛选
+  if (options?.status && options.status !== 'all') {
+    query = query.eq('status', options.status);
+  }
+
+  // 分类筛选
+  if (options?.categoryId) {
+    query = query.eq('category_id', options.categoryId);
+  }
+
+  // 卖家筛选
+  if (options?.sellerId) {
+    query = query.eq('seller_id', options.sellerId);
+  }
+
+  // 搜索
+  if (options?.search) {
+    query = query.or(`title.ilike.%${options.search}%,description.ilike.%${options.search}%`);
+  }
+
+  // 排序
+  const sortBy = options?.sortBy || 'created_at';
+  const sortOrder = options?.sortOrder || 'desc';
+  query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+
+  // 分页
+  if (options?.limit) {
+    const offset = options.offset || 0;
+    query = query.range(offset, offset + options.limit - 1);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error('获取项目列表失败:', error);
+    throw error;
+  }
+
+  return {
+    projects: data || [],
+    total: count || 0
+  };
+}
+
+/**
+ * 管理员获取项目统计信息
+ */
+export async function getProjectStatsForAdmin(): Promise<{
+  total: number;
+  draft: number;
+  pending_review: number;
+  approved: number;
+  rejected: number;
+  archived: number;
+}> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('status');
+
+  if (error) {
+    console.error('获取项目统计失败:', error);
+    throw error;
+  }
+
+  const stats = {
+    total: data?.length || 0,
+    draft: 0,
+    pending_review: 0,
+    approved: 0,
+    rejected: 0,
+    archived: 0,
+  };
+
+  data?.forEach(project => {
+    if (project.status in stats) {
+      stats[project.status as keyof typeof stats]++;
+    }
+  });
+
+  return stats;
+}
+
+/**
+ * 管理员更新项目状态
+ */
+export async function updateProjectStatusAsAdmin(
+  id: string,
+  status: string,
+  reviewComment?: string
+): Promise<Project> {
+  const updateData: any = {
+    status,
+    updated_at: new Date().toISOString()
+  };
+
+  // 如果状态是发布，设置发布时间
+  if (status === 'approved') {
+    updateData.published_at = new Date().toISOString();
+  }
+
+  // 如果有审核意见，保存到项目中
+  if (reviewComment) {
+    updateData.review_comment = reviewComment;
+  }
+
+  const { data, error } = await supabase
+    .from('projects')
+    .update(updateData)
+    .eq('id', id)
+    .select(`
+      *,
+      category:categories(name, slug),
+      seller:users(username, email)
+    `)
+    .single();
+
+  if (error) {
+    console.error('更新项目状态失败:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * 管理员删除项目
+ */
+export async function deleteProjectAsAdmin(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('删除项目失败:', error);
+    throw error;
+  }
+}
+
+/**
  * 增加项目下载量
  */
 export async function incrementProjectDownloads(id: string): Promise<void> {

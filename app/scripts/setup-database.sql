@@ -72,6 +72,7 @@ CREATE TABLE projects (
     rating_count INTEGER DEFAULT 0,
     featured BOOLEAN DEFAULT FALSE,
     featured_until TIMESTAMP WITH TIME ZONE,
+    review_comment TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     published_at TIMESTAMP WITH TIME ZONE

@@ -202,6 +202,13 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                         <>
                           <hr className="my-1" />
                           <Link
+                            href="/admin/projects"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            项目管理
+                          </Link>
+                          <Link
                             href="/admin/categories"
                             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                             onClick={() => setIsMenuOpen(false)}
