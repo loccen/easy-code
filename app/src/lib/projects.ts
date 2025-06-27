@@ -60,17 +60,22 @@ export async function getPublishedProjects(options?: {
 /**
  * 根据ID获取项目详情
  */
-export async function getProjectById(id: string): Promise<Project | null> {
-  const { data, error } = await supabase
+export async function getProjectById(id: string, checkStatus: boolean = true): Promise<Project | null> {
+  let query = supabase
     .from('projects')
     .select(`
       *,
       category:categories(name, slug),
       seller:users(username, email)
     `)
-    .eq('id', id)
-    .eq('status', 'approved')
-    .single();
+    .eq('id', id);
+
+  // 默认只返回已发布的项目，除非明确指定不检查状态
+  if (checkStatus) {
+    query = query.eq('status', 'approved');
+  }
+
+  const { data, error } = await query.single();
 
   if (error) {
     if (error.code === 'PGRST116') {

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Layout } from '@/components/layout';
 import { Button, Card, CardContent, Badge } from '@/components/ui';
 import { getProjectById, incrementProjectViews, getSellerProjects } from '@/lib/projects';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/stores/authStore';
 import { Project } from '@/types';
 
 export default function ProjectDetailPage() {
@@ -24,14 +24,16 @@ export default function ProjectDetailPage() {
     if (projectId) {
       loadProject();
     }
-  }, [projectId]);
+  }, [projectId, user]);
 
   const loadProject = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const projectData = await getProjectById(projectId);
+      // 管理员可以查看所有状态的项目，普通用户只能查看已发布的项目
+      const checkStatus = !user?.role || user.role !== 'admin';
+      const projectData = await getProjectById(projectId, checkStatus);
       
       if (!projectData) {
         setError('项目不存在或已下架');
