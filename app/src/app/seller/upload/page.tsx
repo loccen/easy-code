@@ -178,10 +178,22 @@ export default function ProjectUploadPage() {
       if (projectError) throw projectError;
 
       // 上传文件
+      let fileUrls: string[] = [];
       if (uploadedFiles.length > 0) {
         setUploading(true);
         try {
-          await uploadProjectFiles(project.id);
+          fileUrls = await uploadProjectFiles(project.id);
+
+          // 更新项目记录，保存文件URL
+          const { error: updateError } = await supabase
+            .from('projects')
+            .update({ file_urls: fileUrls })
+            .eq('id', project.id);
+
+          if (updateError) {
+            console.error('保存文件URL失败:', updateError);
+            setError('项目创建成功，文件上传成功，但保存文件信息失败。请联系管理员。');
+          }
         } catch (uploadError) {
           console.error('文件上传失败:', uploadError);
           // 项目已创建，但文件上传失败，给用户提示

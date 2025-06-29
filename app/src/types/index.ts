@@ -77,6 +77,8 @@ export interface Project {
   rating_count: number;
   featured: boolean;
   featured_until?: string;
+  file_urls?: string[];
+  review_comment?: string;
   created_at: string;
   updated_at: string;
   published_at?: string;

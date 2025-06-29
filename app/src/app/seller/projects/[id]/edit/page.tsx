@@ -40,6 +40,12 @@ export default function ProjectEditPage() {
   // 技术栈输入
   const [techStackInput, setTechStackInput] = useState('');
 
+  // 文件管理
+  const [currentFiles, setCurrentFiles] = useState<string[]>([]);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [deletingFiles, setDeletingFiles] = useState<string[]>([]);
+
   // 权限检查
   useEffect(() => {
     if (!authLoading && (!user || !isSeller)) {
@@ -90,6 +96,9 @@ export default function ProjectEditPage() {
         documentation_url: data.documentation_url || '',
         is_dockerized: data.is_dockerized || false,
       });
+
+      // 设置当前文件列表
+      setCurrentFiles(data.file_urls || []);
     } catch (err) {
       console.error('加载项目失败:', err);
       setError('加载项目失败');
@@ -132,6 +141,80 @@ export default function ProjectEditPage() {
     }));
   };
 
+  // 文件管理函数
+  const handleNewFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setNewFiles(files);
+  };
+
+  const uploadNewFiles = async (projectId: string): Promise<string[]> => {
+    if (newFiles.length === 0) return [];
+
+    const uploadedUrls: string[] = [];
+
+    for (const file of newFiles) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${projectId}/${Date.now()}-${file.name}`;
+      const filePath = `projects/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('project-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('project-files')
+        .getPublicUrl(filePath);
+
+      uploadedUrls.push(publicUrl);
+    }
+
+    return uploadedUrls;
+  };
+
+  const deleteFile = async (fileUrl: string) => {
+    if (!project) return;
+
+    try {
+      setDeletingFiles(prev => [...prev, fileUrl]);
+
+      // 从URL中提取文件路径
+      const urlParts = fileUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      const projectFolder = urlParts[urlParts.length - 2];
+      const filePath = `projects/${projectFolder}/${fileName}`;
+
+      // 从存储中删除文件
+      const { error: deleteError } = await supabase.storage
+        .from('project-files')
+        .remove([filePath]);
+
+      if (deleteError) throw deleteError;
+
+      // 从当前文件列表中移除
+      const updatedFiles = currentFiles.filter(url => url !== fileUrl);
+      setCurrentFiles(updatedFiles);
+
+      // 更新数据库
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({ file_urls: updatedFiles })
+        .eq('id', project.id);
+
+      if (updateError) throw updateError;
+
+    } catch (err) {
+      console.error('删除文件失败:', err);
+      setError('删除文件失败');
+    } finally {
+      setDeletingFiles(prev => prev.filter(url => url !== fileUrl));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !project) return;
@@ -155,6 +238,24 @@ export default function ProjectEditPage() {
         return;
       }
 
+      // 上传新文件（如果有）
+      let newFileUrls: string[] = [];
+      if (newFiles.length > 0) {
+        setUploading(true);
+        try {
+          newFileUrls = await uploadNewFiles(project.id);
+        } catch (uploadError) {
+          console.error('文件上传失败:', uploadError);
+          setError('文件上传失败，请重试');
+          return;
+        } finally {
+          setUploading(false);
+        }
+      }
+
+      // 合并现有文件和新文件URL
+      const allFileUrls = [...currentFiles, ...newFileUrls];
+
       // 更新项目数据
       const updateData = {
         title: formData.title.trim(),
@@ -168,6 +269,7 @@ export default function ProjectEditPage() {
         github_url: formData.github_url.trim() || null,
         documentation_url: formData.documentation_url.trim() || null,
         is_dockerized: formData.is_dockerized,
+        file_urls: allFileUrls.length > 0 ? allFileUrls : null,
         updated_at: new Date().toISOString(),
       };
 
@@ -177,6 +279,10 @@ export default function ProjectEditPage() {
         .eq('id', project.id);
 
       if (error) throw error;
+
+      // 清空新文件选择
+      setNewFiles([]);
+      setCurrentFiles(allFileUrls);
 
       setSuccess('项目更新成功！');
       
@@ -462,6 +568,66 @@ export default function ProjectEditPage() {
               </div>
             </div>
 
+            {/* 文件管理 */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">项目文件</h3>
+
+              {/* 当前文件列表 */}
+              {currentFiles.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">当前文件：</h4>
+                  <div className="space-y-2">
+                    {currentFiles.map((fileUrl, index) => {
+                      const fileName = fileUrl.split('/').pop() || `文件${index + 1}`;
+                      const isDeleting = deletingFiles.includes(fileUrl);
+
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                          <span className="text-sm text-gray-700">{fileName}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteFile(fileUrl)}
+                            disabled={isDeleting}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            {isDeleting ? '删除中...' : '删除'}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 新文件上传 */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleNewFileChange}
+                  className="w-full"
+                  accept=".zip,.rar,.tar.gz,.7z"
+                />
+                <p className="mt-2 text-sm text-gray-500">
+                  支持上传压缩文件（.zip, .rar, .tar.gz, .7z），单个文件最大100MB
+                </p>
+                {newFiles.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">待上传文件：</h4>
+                    <ul className="text-sm text-gray-600">
+                      {newFiles.map((file, index) => (
+                        <li key={index}>
+                          {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Docker配置 */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">部署配置</h3>
@@ -491,10 +657,10 @@ export default function ProjectEditPage() {
               </Button>
               <Button
                 type="submit"
-                loading={saving}
-                disabled={saving}
+                loading={saving || uploading}
+                disabled={saving || uploading}
               >
-                {saving ? '保存中...' : '保存更改'}
+                {uploading ? '上传文件中...' : saving ? '保存中...' : '保存更改'}
               </Button>
             </div>
           </form>
