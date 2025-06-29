@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/stores/authStore';
+import { useDialogContext } from '@/components/DialogProvider';
 import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
 import { Button, Card, Input, Loading } from '@/components/ui';
@@ -10,6 +11,7 @@ import { Category } from '@/types';
 
 export default function CategoriesManagePage() {
   const { user, loading: authLoading, isAdmin } = useAuth();
+  const { confirm, alert } = useDialogContext();
   const router = useRouter();
   
   const [categories, setCategories] = useState<Category[]>([]);
@@ -201,32 +203,41 @@ export default function CategoriesManagePage() {
         const projectNames = projects.slice(0, 3).map(p => p.title).join('、');
         const moreText = projects.length > 3 ? `等${projects.length}个项目` : '';
 
-        if (!confirm(
-          `分类"${category.name}"正在被以下项目使用：${projectNames}${moreText}\n\n` +
-          `删除此分类将导致这些项目失去分类信息。\n` +
-          `建议先将这些项目移动到其他分类，或者禁用此分类而不是删除。\n\n` +
-          `确定要强制删除吗？`
-        )) {
-          return;
-        }
+        const confirmed1 = await confirm({
+          title: '分类正在使用中',
+          message: `分类"${category.name}"正在被以下项目使用：${projectNames}${moreText}\n\n删除此分类将导致这些项目失去分类信息。\n建议先将这些项目移动到其他分类，或者禁用此分类而不是删除。\n\n确定要强制删除吗？`,
+          confirmText: '强制删除',
+          cancelText: '取消',
+          variant: 'danger'
+        });
+
+        if (!confirmed1) return;
       }
 
       if (subCategories && subCategories.length > 0) {
         const subNames = subCategories.map(c => c.name).join('、');
 
-        if (!confirm(
-          `分类"${category.name}"包含以下子分类：${subNames}\n\n` +
-          `删除此分类将同时删除所有子分类。\n\n` +
-          `确定要继续吗？`
-        )) {
-          return;
-        }
+        const confirmed2 = await confirm({
+          title: '包含子分类',
+          message: `分类"${category.name}"包含以下子分类：${subNames}\n\n删除此分类将同时删除所有子分类。\n\n确定要继续吗？`,
+          confirmText: '继续删除',
+          cancelText: '取消',
+          variant: 'danger'
+        });
+
+        if (!confirmed2) return;
       }
 
       // 最终确认
-      if (!confirm(`确定要删除分类"${category.name}"吗？此操作不可撤销。`)) {
-        return;
-      }
+      const finalConfirmed = await confirm({
+        title: '删除分类',
+        message: `确定要删除分类"${category.name}"吗？\n\n此操作不可撤销。`,
+        confirmText: '删除',
+        cancelText: '取消',
+        variant: 'danger'
+      });
+
+      if (!finalConfirmed) return;
 
       // 如果有项目使用该分类，先将项目的分类设为null
       if (projects && projects.length > 0) {

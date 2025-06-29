@@ -7,12 +7,14 @@ import { Layout } from '@/components/layout';
 import { Button, Card, CardContent, Badge } from '@/components/ui';
 import { getProjectById, incrementProjectViews, getSellerProjects } from '@/lib/projects';
 import { useAuth } from '@/stores/authStore';
+import { useDialogContext } from '@/components/DialogProvider';
 import { Project } from '@/types';
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
+  const { alert } = useDialogContext();
   const [project, setProject] = useState<Project | null>(null);
   const [sellerProjects, setSellerProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,22 +71,28 @@ export default function ProjectDetailPage() {
     return `$${price}`;
   };
 
-  const handlePurchase = () => {
+  const handlePurchase = async () => {
     if (!user) {
       router.push('/auth/login');
       return;
     }
     // TODO: 实现购买逻辑
-    alert('购买功能正在开发中...');
+    await alert({
+      type: 'info',
+      message: '购买功能正在开发中...'
+    });
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!user) {
       router.push('/auth/login');
       return;
     }
     // TODO: 实现加入购物车逻辑
-    alert('购物车功能正在开发中...');
+    await alert({
+      type: 'info',
+      message: '购物车功能正在开发中...'
+    });
   };
 
   if (loading) {

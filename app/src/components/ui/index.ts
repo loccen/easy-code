@@ -17,3 +17,12 @@ export type { AvatarProps } from './Avatar';
 
 export { default as Loading } from './Loading';
 export type { LoadingProps } from './Loading';
+
+export { default as Modal } from './Modal';
+export type { ModalProps } from './Modal';
+
+export { default as ConfirmDialog } from './ConfirmDialog';
+export type { ConfirmDialogProps } from './ConfirmDialog';
+
+export { default as Alert } from './Alert';
+export type { AlertProps } from './Alert';

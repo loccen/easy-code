@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/stores/authStore';
+import { useDialogContext } from '@/components/DialogProvider';
 import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
 import { Button, Card, Loading } from '@/components/ui';
@@ -11,6 +12,7 @@ import { Project } from '@/types';
 
 export default function SellerProjectsPage() {
   const { user, loading: authLoading, isSeller } = useAuth();
+  const { confirm, alert } = useDialogContext();
   const router = useRouter();
   
   const [projects, setProjects] = useState<Project[]>([]);
@@ -81,13 +83,19 @@ export default function SellerProjectsPage() {
   };
 
   const handleDelete = async (project: Project) => {
-    if (!confirm(`确定要删除项目"${project.title}"吗？此操作不可撤销。`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: '删除项目',
+      message: `确定要删除项目"${project.title}"吗？\n\n此操作不可撤销。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'danger'
+    });
+
+    if (!confirmed) return;
 
     try {
       setError('');
-      
+
       const { error } = await supabase
         .from('projects')
         .delete()
@@ -95,11 +103,18 @@ export default function SellerProjectsPage() {
 
       if (error) throw error;
 
-      setSuccess('项目删除成功！');
+      await alert({
+        type: 'success',
+        message: '项目删除成功！'
+      });
+
       await loadProjects();
     } catch (err) {
       console.error('删除项目失败:', err);
-      setError(err instanceof Error ? err.message : '删除项目失败');
+      await alert({
+        type: 'error',
+        message: err instanceof Error ? err.message : '删除项目失败'
+      });
     }
   };
 
