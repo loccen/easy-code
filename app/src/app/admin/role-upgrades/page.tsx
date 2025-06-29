@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout';
-import { Button, Card, Badge, Loading, Input } from '@/components/ui';
+import { Button, Card, Badge, Loading } from '@/components/ui';
 import { useAuth } from '@/stores/authStore';
 import { 
   getAllRoleUpgradeRequests, 
@@ -12,7 +12,7 @@ import {
 import { RoleUpgradeRequest } from '@/types';
 
 export default function AdminRoleUpgradesPage() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [requests, setRequests] = useState<RoleUpgradeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,14 +26,7 @@ export default function AdminRoleUpgradesPage() {
     rejected: 0,
   });
 
-  useEffect(() => {
-    if (isAdmin) {
-      loadRequests();
-      loadStats();
-    }
-  }, [isAdmin, selectedStatus]);
-
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -49,7 +42,14 @@ export default function AdminRoleUpgradesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStatus]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadRequests();
+      loadStats();
+    }
+  }, [isAdmin, loadRequests]);
 
   const loadStats = async () => {
     try {

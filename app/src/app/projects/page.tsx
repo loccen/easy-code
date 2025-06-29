@@ -104,12 +104,12 @@ export default function ProjectsPage() {
     loadProjects(currentPage);
   };
 
-  const formatPrice = (price: number, currency: string = 'CNY') => {
-    if (currency === 'CNY') {
-      return `¥${price}`;
-    }
-    return `$${price}`;
-  };
+  // const formatPrice = (price: number, currency: string = 'CNY') => {
+  //   if (currency === 'CNY') {
+  //     return `¥${price}`;
+  //   }
+  //   return `$${price}`;
+  // };
 
   const totalPages = Math.ceil(total / itemsPerPage);
 

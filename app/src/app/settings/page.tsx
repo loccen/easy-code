@@ -323,7 +323,7 @@ export default function SettingsPage() {
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="deleteConfirm" className="block text-sm font-medium text-red-700 mb-1">
-                        请输入 "DELETE" 确认删除
+                        请输入 &ldquo;DELETE&rdquo; 确认删除
                       </label>
                       <Input
                         id="deleteConfirm"

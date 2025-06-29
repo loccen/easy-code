@@ -252,8 +252,8 @@ export default function SellerProjectsPage() {
                     
                     <div className="flex items-center space-x-6 text-sm text-gray-500 mb-4">
                       <span>价格: {formatPrice(project.price, project.currency)}</span>
-                      {(project as any).category && (
-                        <span>分类: {(project as any).category.name}</span>
+                      {(project as Project & { category?: { name: string } }).category && (
+                        <span>分类: {(project as Project & { category?: { name: string } }).category?.name}</span>
                       )}
                       <span>下载: {project.download_count || 0}</span>
                       <span>浏览: {project.view_count || 0}</span>

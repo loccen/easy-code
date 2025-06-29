@@ -46,7 +46,7 @@ export default function RegisterPage() {
       } else {
         setError('');
       }
-    } catch (err) {
+    } catch {
       setError('检查用户名时出错');
     } finally {
       setUsernameChecking(false);

@@ -153,7 +153,7 @@ export default function ProjectEditPage() {
     const uploadedUrls: string[] = [];
 
     for (const file of newFiles) {
-      const fileExt = file.name.split('.').pop();
+      // const fileExt = file.name.split('.').pop();
       const fileName = `${projectId}/${Date.now()}-${file.name}`;
       const filePath = `projects/${fileName}`;
 
@@ -482,7 +482,7 @@ export default function ProjectEditPage() {
                     value={techStackInput}
                     onChange={(e) => setTechStackInput(e.target.value)}
                     placeholder="输入技术栈（如：React, Node.js, MongoDB）"
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         handleTechStackAdd();

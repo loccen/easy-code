@@ -168,7 +168,7 @@ export async function deleteProject(id: string): Promise<void> {
  * 更新项目状态
  */
 export async function updateProjectStatus(id: string, status: string): Promise<Project> {
-  const updateData: any = { 
+  const updateData: Record<string, unknown> = {
     status,
     updated_at: new Date().toISOString()
   };
@@ -318,7 +318,7 @@ export async function updateProjectStatusAsAdmin(
   status: string,
   reviewComment?: string
 ): Promise<Project> {
-  const updateData: any = {
+  const updateData: Record<string, unknown> = {
     status,
     updated_at: new Date().toISOString()
   };

@@ -24,7 +24,7 @@ export interface UserProfile {
   location?: string;
   timezone?: string;
   language: string;
-  preferences: Record<string, any>;
+  preferences: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -164,7 +164,7 @@ export interface Category {
 }
 
 // API响应类型
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;

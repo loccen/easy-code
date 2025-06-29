@@ -124,12 +124,12 @@ export default function SearchPage() {
     setCurrentPage(1);
   };
 
-  const formatPrice = (price: number, currency: string = 'CNY') => {
-    if (currency === 'CNY') {
-      return `¥${price}`;
-    }
-    return `$${price}`;
-  };
+  // const formatPrice = (price: number, currency: string = 'CNY') => {
+  //   if (currency === 'CNY') {
+  //     return `¥${price}`;
+  //   }
+  //   return `$${price}`;
+  // };
 
   const totalPages = Math.ceil(total / itemsPerPage);
 
@@ -298,7 +298,7 @@ export default function SearchPage() {
                 <p className="text-gray-600">
                   共找到 <span className="font-semibold">{total}</span> 个项目
                   {searchQuery && (
-                    <span> 关于 "<span className="font-semibold">{searchQuery}</span>"</span>
+                    <span> 关于 &ldquo;<span className="font-semibold">{searchQuery}</span>&rdquo;</span>
                   )}
                 </p>
               </div>

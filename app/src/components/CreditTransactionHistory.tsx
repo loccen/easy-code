@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { getUserCreditTransactions, formatTransactionType, formatCreditsAmount, getTransactionTypeColor } from '@/lib/credits';
 import type { CreditTransaction } from '@/types';
@@ -23,16 +23,7 @@ export default function CreditTransactionHistory({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-
-    loadTransactions();
-  }, [user?.id, limit]);
-
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -46,7 +37,16 @@ export default function CreditTransactionHistory({
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, limit]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    loadTransactions();
+  }, [user?.id, limit, loadTransactions]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

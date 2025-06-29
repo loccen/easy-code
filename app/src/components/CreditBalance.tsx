@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { getUserCredits } from '@/lib/credits';
 import type { UserCredits } from '@/types';
@@ -17,16 +17,7 @@ export default function CreditBalance({ showLabel = true, className = '' }: Cred
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-
-    loadCredits();
-  }, [user?.id, loadCredits]);
-
-  const loadCredits = async () => {
+  const loadCredits = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -40,7 +31,16 @@ export default function CreditBalance({ showLabel = true, className = '' }: Cred
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    loadCredits();
+  }, [user?.id, loadCredits]);
 
   if (!user) {
     return null;

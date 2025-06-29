@@ -11,7 +11,7 @@ import { Category } from '@/types';
 
 export default function CategoriesManagePage() {
   const { user, loading: authLoading, isAdmin } = useAuth();
-  const { confirm, alert } = useDialogContext();
+  const { confirm } = useDialogContext();
   const router = useRouter();
   
   const [categories, setCategories] = useState<Category[]>([]);
@@ -367,7 +367,7 @@ export default function CategoriesManagePage() {
                             {category.slug}
                             {category.parent_id && (
                               <span className="ml-2">
-                                • 父分类: {(category as any).parent?.name}
+                                • 父分类: {(category as Category & { parent?: { name: string } }).parent?.name}
                               </span>
                             )}
                           </p>

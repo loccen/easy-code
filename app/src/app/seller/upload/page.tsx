@@ -100,7 +100,7 @@ export default function ProjectUploadPage() {
     const uploadedUrls: string[] = [];
 
     for (const file of uploadedFiles) {
-      const fileExt = file.name.split('.').pop();
+      // const fileExt = file.name.split('.').pop();
       const fileName = `${projectId}/${Date.now()}-${file.name}`;
       const filePath = `projects/${fileName}`;
 

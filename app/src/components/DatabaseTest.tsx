@@ -7,7 +7,7 @@ interface ConnectionStatus {
   connected: boolean;
   error?: string;
   tables?: string[];
-  categories?: any[];
+  categories?: Record<string, unknown>[];
 }
 
 export default function DatabaseTest() {

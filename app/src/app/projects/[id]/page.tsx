@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Layout } from '@/components/layout';
-import { Button, Card, CardContent, Badge } from '@/components/ui';
+import { Button, Card, Badge } from '@/components/ui';
 import { getProjectById, incrementProjectViews, getSellerProjects } from '@/lib/projects';
 import { useAuth } from '@/stores/authStore';
 import { useDialogContext } from '@/components/DialogProvider';
@@ -22,13 +22,7 @@ export default function ProjectDetailPage() {
 
   const projectId = params.id as string;
 
-  useEffect(() => {
-    if (projectId) {
-      loadProject();
-    }
-  }, [projectId, user]);
-
-  const loadProject = async () => {
+  const loadProject = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -62,7 +56,13 @@ export default function ProjectDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, user]);
+
+  useEffect(() => {
+    if (projectId) {
+      loadProject();
+    }
+  }, [projectId, loadProject]);
 
   const formatPrice = (price: number, currency: string = 'CNY') => {
     if (currency === 'CNY') {
@@ -141,10 +141,10 @@ export default function ProjectDetailPage() {
           <span>/</span>
           <Link href="/projects" className="hover:text-blue-600">项目市场</Link>
           <span>/</span>
-          {project.category && (
+          {(project as Project & { category?: { name: string; slug: string } }).category && (
             <>
-              <Link href={`/projects?category=${project.category.slug}`} className="hover:text-blue-600">
-                {project.category.name}
+              <Link href={`/projects?category=${(project as Project & { category?: { name: string; slug: string } }).category?.slug}`} className="hover:text-blue-600">
+                {(project as Project & { category?: { name: string; slug: string } }).category?.name}
               </Link>
               <span>/</span>
             </>
@@ -158,9 +158,9 @@ export default function ProjectDetailPage() {
             {/* 项目图片 */}
             <Card className="overflow-hidden mb-6">
               <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-                {project.thumbnail_url ? (
+                {(project as Project & { thumbnail_url?: string }).thumbnail_url ? (
                   <img
-                    src={project.thumbnail_url}
+                    src={(project as Project & { thumbnail_url?: string }).thumbnail_url}
                     alt={project.title}
                     className="w-full h-full object-cover"
                   />
@@ -202,7 +202,7 @@ export default function ProjectDetailPage() {
                   <h3 className="text-sm font-medium text-gray-700 mb-2">技术栈</h3>
                   <div className="flex flex-wrap gap-2">
                     {project.tech_stack.map((tech, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={index} variant="outline">
                         {tech}
                       </Badge>
                     ))}

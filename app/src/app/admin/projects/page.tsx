@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Layout } from '@/components/layout';
@@ -59,15 +59,7 @@ export default function AdminProjectsPage() {
     }
   }, [authLoading, user, isAdmin, router]);
 
-  useEffect(() => {
-    if (isAdmin) {
-      loadProjects();
-      loadCategories();
-      loadStats();
-    }
-  }, [isAdmin, selectedStatus, selectedCategory, searchQuery, currentPage]);
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -91,7 +83,15 @@ export default function AdminProjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStatus, selectedCategory, searchQuery, currentPage]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadProjects();
+      loadCategories();
+      loadStats();
+    }
+  }, [isAdmin, loadProjects]);
 
   const loadCategories = async () => {
     try {
@@ -401,15 +401,15 @@ export default function AdminProjectsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {project.seller?.username || '未知'}
+                        {(project as Project & { seller?: { username: string; email: string } }).seller?.username || '未知'}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {project.seller?.email || ''}
+                        {(project as Project & { seller?: { username: string; email: string } }).seller?.email || ''}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {project.category?.name || '未分类'}
+                        {(project as Project & { category?: { name: string } }).category?.name || '未分类'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -514,7 +514,7 @@ export default function AdminProjectsPage() {
                 return (
                   <Button
                     key={page}
-                    variant={currentPage === page ? "default" : "outline"}
+                    variant={currentPage === page ? "primary" : "outline"}
                     onClick={() => setCurrentPage(page)}
                   >
                     {page}

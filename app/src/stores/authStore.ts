@@ -17,7 +17,7 @@ interface AuthActions {
   refreshUser: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
+export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   user: null,
   loading: true,
   initialized: false,

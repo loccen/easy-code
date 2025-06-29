@@ -155,7 +155,7 @@ export async function updatePassword(password: string) {
  */
 export async function checkUsernameAvailable(username: string): Promise<boolean> {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('users')
       .select('username')
       .eq('username', username)
