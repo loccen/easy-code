@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useAuthStore } from '@/stores/authStore';
 import { Button, Avatar, Badge, Input } from '@/components/ui';
+import CreditBalance from '@/components/CreditBalance';
 import { cn } from '@/lib/utils';
 
 export interface HeaderProps {
@@ -114,6 +115,9 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
           <div className="flex items-center space-x-4">
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-3">
+                {/* 积分余额 */}
+                <CreditBalance showLabel={false} className="hidden sm:flex" />
+
                 {/* 角色标识 - 只显示最高权限 */}
                 <div className="flex items-center space-x-2">
                   {isAdmin ? (
@@ -221,6 +225,13 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                             onClick={() => setIsMenuOpen(false)}
                           >
                             角色升级管理
+                          </Link>
+                          <Link
+                            href="/admin/credits"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            积分配置管理
                           </Link>
                         </>
                       )}

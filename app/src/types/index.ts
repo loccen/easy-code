@@ -52,6 +52,72 @@ export interface RoleUpgradeRequest {
   reviewer?: User;
 }
 
+// 积分系统相关类型
+export type CreditTransactionType =
+  | 'earn_register'      // 注册奖励
+  | 'earn_upload'        // 上传项目奖励
+  | 'earn_review'        // 评价奖励
+  | 'earn_referral'      // 推荐奖励
+  | 'earn_daily'         // 每日签到
+  | 'earn_docker'        // Docker化项目双倍奖励
+  | 'spend_purchase'     // 购买项目消费
+  | 'spend_feature'      // 项目置顶消费
+  | 'refund_purchase'    // 购买退款
+  | 'admin_adjust';      // 管理员调整
+
+export interface UserCredits {
+  id: string;
+  user_id: string;
+  total_credits: number;
+  available_credits: number;
+  frozen_credits: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreditTransaction {
+  id: string;
+  user_id: string;
+  transaction_type: CreditTransactionType;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  description?: string;
+  reference_id?: string;
+  reference_type?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+export interface CreditConfig {
+  id: string;
+  config_key: string;
+  config_value: number;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// 积分操作请求类型
+export interface AddCreditsRequest {
+  user_id: string;
+  amount: number;
+  transaction_type: CreditTransactionType;
+  description?: string;
+  reference_id?: string;
+  reference_type?: string;
+}
+
+export interface SpendCreditsRequest {
+  user_id: string;
+  amount: number;
+  transaction_type: CreditTransactionType;
+  description?: string;
+  reference_id?: string;
+  reference_type?: string;
+}
+
 // 项目相关类型
 export type ProjectStatus = 'draft' | 'pending_review' | 'approved' | 'rejected' | 'archived';
 

@@ -5,6 +5,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
+import CreditBalance from '@/components/CreditBalance';
+import CreditTransactionHistory from '@/components/CreditTransactionHistory';
 
 export default function DashboardPage() {
   const { user, loading, isAuthenticated, isAdmin, isSeller, isBuyer } = useAuth();
@@ -141,6 +143,12 @@ export default function DashboardPage() {
                     </span>
                   </dd>
                 </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">积分余额</dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    <CreditBalance showLabel={false} />
+                  </dd>
+                </div>
               </dl>
             </div>
           </div>
@@ -213,6 +221,9 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* 积分交易历史 */}
+          <CreditTransactionHistory limit={5} className="mb-6" />
         </div>
       </div>
     </div>

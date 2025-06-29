@@ -349,6 +349,18 @@ export async function updateProjectStatusAsAdmin(
     throw error;
   }
 
+  // 如果项目审核通过，发放积分奖励
+  if (status === 'approved' && data) {
+    try {
+      // 动态导入积分模块，避免循环依赖
+      const { grantUploadBonus } = await import('./credits');
+      await grantUploadBonus(data.seller_id, data.id, data.is_dockerized || false);
+    } catch (creditError) {
+      console.error('发放项目审核通过积分奖励失败:', creditError);
+      // 积分发放失败不应该影响项目审核，只记录错误
+    }
+  }
+
   return data;
 }
 
