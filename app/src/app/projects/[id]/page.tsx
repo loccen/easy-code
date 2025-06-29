@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Layout } from '@/components/layout';
 import { Button, Card, Badge } from '@/components/ui';
 import { getProjectById, incrementProjectViews, getSellerProjects } from '@/lib/projects';
@@ -157,12 +158,13 @@ export default function ProjectDetailPage() {
           <div className="lg:col-span-2">
             {/* 项目图片 */}
             <Card className="overflow-hidden mb-6">
-              <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+              <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center relative">
                 {(project as Project & { thumbnail_url?: string }).thumbnail_url ? (
-                  <img
-                    src={(project as Project & { thumbnail_url?: string }).thumbnail_url}
+                  <Image
+                    src={(project as Project & { thumbnail_url?: string }).thumbnail_url!}
                     alt={project.title}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 ) : (
                   <div className="text-center text-gray-500">
@@ -327,15 +329,15 @@ export default function ProjectDetailPage() {
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center mr-3">
                   <span className="text-lg text-gray-600">
-                    {project.seller?.username?.[0]?.toUpperCase() || 'U'}
+                    {(project as Project & { seller?: { username: string } }).seller?.username?.[0]?.toUpperCase() || 'U'}
                   </span>
                 </div>
                 <div>
                   <div className="font-medium text-gray-900">
-                    {project.seller?.username || '匿名用户'}
+                    {(project as Project & { seller?: { username: string; email: string; created_at: string } }).seller?.username || '匿名用户'}
                   </div>
                   <div className="text-sm text-gray-600">
-                    {project.seller?.email || ''}
+                    {(project as Project & { seller?: { username: string; email: string; created_at: string } }).seller?.email || ''}
                   </div>
                 </div>
               </div>
@@ -348,7 +350,7 @@ export default function ProjectDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">加入时间</span>
                   <span className="font-medium">
-                    {project.seller?.created_at ? new Date(project.seller.created_at).getFullYear() : '未知'}
+                    {(project as Project & { seller?: { username: string; email: string; created_at: string } }).seller?.created_at ? new Date((project as Project & { seller?: { username: string; email: string; created_at: string } }).seller!.created_at).getFullYear() : '未知'}
                   </span>
                 </div>
               </div>

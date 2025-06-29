@@ -115,23 +115,23 @@ export default function DatabaseTest() {
           <div className="space-y-2">
             {status.categories.map((category) => (
               <div
-                key={category.id}
+                key={(category as { id: string }).id}
                 className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded"
               >
                 <div className="flex items-center">
-                  <span className="font-medium">{category.name}</span>
+                  <span className="font-medium">{(category as { name: string }).name}</span>
                   <span className="ml-2 text-sm text-gray-500">
-                    ({category.slug})
+                    ({(category as { slug: string }).slug})
                   </span>
                 </div>
                 <span
                   className={`text-xs px-2 py-1 rounded ${
-                    category.is_active
+                    (category as { is_active: boolean }).is_active
                       ? 'bg-green-100 text-green-800'
                       : 'bg-gray-100 text-gray-800'
                   }`}
                 >
-                  {category.is_active ? '激活' : '禁用'}
+                  {(category as { is_active: boolean }).is_active ? '激活' : '禁用'}
                 </span>
               </div>
             ))}

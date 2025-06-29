@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Layout } from '@/components/layout';
 import { Button, Card, CardContent, Badge, Input } from '@/components/ui';
 import { getPublishedProjects, searchProjects } from '@/lib/projects';
 import { getActiveCategories } from '@/lib/categories';
 import { Project, Category } from '@/types';
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
   const searchParams = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -28,17 +29,6 @@ export default function ProjectsPage() {
     loadCategories();
   }, []);
 
-  useEffect(() => {
-    // 从URL参数获取初始值
-    const category = searchParams.get('category') || '';
-    const search = searchParams.get('search') || '';
-    
-    setSelectedCategory(category);
-    setSearchQuery(search);
-    
-    loadProjects(1, category, search);
-  }, [searchParams]);
-
   const loadCategories = async () => {
     try {
       const data = await getActiveCategories();
@@ -48,7 +38,7 @@ export default function ProjectsPage() {
     }
   };
 
-  const loadProjects = async (page: number = 1, categoryFilter?: string, searchFilter?: string) => {
+  const loadProjects = useCallback(async (page: number = 1, categoryFilter?: string, searchFilter?: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -85,7 +75,18 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory, searchQuery, sortBy, sortOrder]);
+
+  useEffect(() => {
+    // 从URL参数获取初始值
+    const category = searchParams.get('category') || '';
+    const search = searchParams.get('search') || '';
+
+    setSelectedCategory(category);
+    setSearchQuery(search);
+
+    loadProjects(1, category, search);
+  }, [searchParams, loadProjects]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,7 +256,7 @@ export default function ProjectsPage() {
                         return (
                           <Button
                             key={page}
-                            variant={currentPage === page ? 'default' : 'outline'}
+                            variant={currentPage === page ? 'primary' : 'outline'}
                             onClick={() => loadProjects(page)}
                           >
                             {page}
@@ -296,12 +297,13 @@ function ProjectCard({ project }: { project: Project }) {
       <Link href={`/projects/${project.id}`}>
         <div className="cursor-pointer">
           {/* 项目图片 */}
-          <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-            {project.thumbnail_url ? (
-              <img
-                src={project.thumbnail_url}
+          <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center relative">
+            {(project as Project & { thumbnail_url?: string }).thumbnail_url ? (
+              <Image
+                src={(project as Project & { thumbnail_url?: string }).thumbnail_url!}
                 alt={project.title}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
             ) : (
               <div className="text-center text-gray-500">
@@ -330,12 +332,12 @@ function ProjectCard({ project }: { project: Project }) {
             {project.tech_stack && project.tech_stack.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-3">
                 {project.tech_stack.slice(0, 3).map((tech, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
+                  <Badge key={index} variant="outline" className="text-xs">
                     {tech}
                   </Badge>
                 ))}
                 {project.tech_stack.length > 3 && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="outline" className="text-xs">
                     +{project.tech_stack.length - 3}
                   </Badge>
                 )}
@@ -358,11 +360,11 @@ function ProjectCard({ project }: { project: Project }) {
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
                   <span className="text-xs text-gray-600">
-                    {project.seller?.username?.[0]?.toUpperCase() || 'U'}
+                    {(project as Project & { seller?: { username: string } }).seller?.username?.[0]?.toUpperCase() || 'U'}
                   </span>
                 </div>
                 <span className="text-sm text-gray-600">
-                  {project.seller?.username || '匿名用户'}
+                  {(project as Project & { seller?: { username: string } }).seller?.username || '匿名用户'}
                 </span>
               </div>
             </div>
@@ -370,5 +372,22 @@ function ProjectCard({ project }: { project: Project }) {
         </div>
       </Link>
     </Card>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">加载中...</p>
+          </div>
+        </div>
+      </Layout>
+    }>
+      <ProjectsPageContent />
+    </Suspense>
   );
 }

@@ -64,7 +64,7 @@ export const useDialog = () => {
       options: null,
       resolve: null,
     });
-  }, [dialogState.resolve]);
+  }, [dialogState]);
 
   const handleCancel = useCallback(() => {
     if (dialogState.resolve) {
@@ -76,7 +76,7 @@ export const useDialog = () => {
       options: null,
       resolve: null,
     });
-  }, [dialogState.resolve]);
+  }, [dialogState]);
 
   const handleClose = useCallback(() => {
     if (dialogState.type === 'alert') {

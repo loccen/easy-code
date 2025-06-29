@@ -145,9 +145,13 @@ export interface Project {
   featured_until?: string;
   file_urls?: string[];
   review_comment?: string;
+  thumbnail_url?: string;
   created_at: string;
   updated_at: string;
   published_at?: string;
+  // 关联数据
+  seller?: User;
+  category?: Category;
 }
 
 export interface Category {

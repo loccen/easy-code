@@ -1,4 +1,7 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -11,6 +14,8 @@ export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
   ({ className, src, alt, size = 'md', fallback, children, ...props }, ref) => {
+    const [imageError, setImageError] = useState(false);
+
     const sizeClasses = {
       sm: 'h-8 w-8 text-sm',
       md: 'h-10 w-10 text-base',
@@ -45,15 +50,13 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         className={classes}
         {...props}
       >
-        {src ? (
-          <img
+        {src && !imageError ? (
+          <Image
             src={src}
             alt={alt || 'Avatar'}
-            className="h-full w-full object-cover"
-            onError={(e) => {
-              // 如果图片加载失败，隐藏图片显示fallback
-              e.currentTarget.style.display = 'none';
-            }}
+            fill
+            className="object-cover"
+            onError={() => setImageError(true)}
           />
         ) : null}
         

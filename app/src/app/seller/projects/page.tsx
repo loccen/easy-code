@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/stores/authStore';
@@ -27,19 +27,12 @@ export default function SellerProjectsPage() {
     }
   }, [authLoading, user, isSeller, router]);
 
-  // 加载项目数据
-  useEffect(() => {
-    if (user && isSeller) {
-      loadProjects();
-    }
-  }, [user, isSeller]);
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
-      
+
       const { data, error } = await supabase
         .from('projects')
         .select(`
@@ -58,7 +51,14 @@ export default function SellerProjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  // 加载项目数据
+  useEffect(() => {
+    if (user && isSeller) {
+      loadProjects();
+    }
+  }, [user, isSeller, loadProjects]);
 
   const handleStatusChange = async (projectId: string, newStatus: string) => {
     try {
