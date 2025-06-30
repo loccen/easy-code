@@ -5,6 +5,14 @@
 CREATE TYPE user_role AS ENUM ('buyer', 'seller', 'admin');
 CREATE TYPE user_status AS ENUM ('active', 'inactive', 'suspended', 'banned');
 CREATE TYPE project_status AS ENUM ('draft', 'pending_review', 'approved', 'rejected', 'archived');
+CREATE TYPE credit_transaction_type AS ENUM (
+    'earn_register', 'earn_upload', 'earn_review', 'earn_referral',
+    'earn_daily', 'earn_docker', 'spend_purchase', 'spend_feature',
+    'refund_purchase', 'admin_adjust'
+);
+CREATE TYPE order_status AS ENUM ('pending', 'processing', 'completed', 'cancelled', 'refunded');
+CREATE TYPE payment_method AS ENUM ('credits', 'alipay', 'wechat', 'stripe', 'paypal');
+CREATE TYPE upgrade_request_status AS ENUM ('pending', 'approved', 'rejected');
 
 -- 用户基础信息表
 CREATE TABLE users (
@@ -73,6 +81,7 @@ CREATE TABLE projects (
     featured BOOLEAN DEFAULT FALSE,
     featured_until TIMESTAMP WITH TIME ZONE,
     review_comment TEXT,
+    file_urls TEXT[],
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     published_at TIMESTAMP WITH TIME ZONE
