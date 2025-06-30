@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { grantRegistrationBonus } from './credits';
 import type { User, UserProfile } from '@/types';
 
 export interface AuthUser extends User {
@@ -43,6 +44,14 @@ export async function signUp(email: string, password: string, username: string) 
       });
 
     if (profileError) throw profileError;
+
+    // 4. 发放注册奖励积分（异步执行，不阻塞注册流程）
+    try {
+      await grantRegistrationBonus(authData.user.id);
+    } catch (error) {
+      console.error('发放注册奖励失败:', error);
+      // 不抛出错误，不影响注册流程
+    }
 
     return { user: authData.user, session: authData.session };
   } catch (error) {
@@ -89,28 +98,42 @@ export async function signOut() {
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) return null;
 
-    // 获取用户详细信息
+    // 获取用户详细信息，不使用 .single() 避免 PGRST116 错误
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .limit(1);
 
-    if (userError) throw userError;
+    if (userError) {
+      console.error('获取用户详细信息失败:', userError);
+      throw userError;
+    }
 
-    // 获取用户资料
-    const { data: profileData } = await supabase
+    // 如果没有找到用户记录，返回null
+    if (!userData || userData.length === 0) {
+      console.warn('用户记录不存在:', user.id);
+      return null;
+    }
+
+    // 获取用户资料，不使用 .single()
+    const { data: profileData, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .limit(1);
+
+    if (profileError) {
+      console.error('获取用户资料失败:', profileError);
+      // 不抛出错误，允许没有资料的情况
+    }
 
     return {
-      ...userData,
-      profile: profileData || undefined,
+      ...userData[0],
+      profile: (profileData && profileData.length > 0) ? profileData[0] : undefined,
     };
   } catch (error) {
     console.error('获取用户信息错误:', error);

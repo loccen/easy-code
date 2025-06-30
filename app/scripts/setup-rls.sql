@@ -87,3 +87,44 @@ INSERT INTO user_profiles (user_id, first_name, last_name, bio) VALUES
 ('00000000-0000-0000-0000-000000000001', '系统', '管理员', '易码网系统管理员'),
 ('00000000-0000-0000-0000-000000000002', '演示', '卖家', '这是一个演示卖家账户'),
 ('00000000-0000-0000-0000-000000000003', '演示', '买家', '这是一个演示买家账户');
+
+-- ========================================
+-- 积分系统相关RLS策略
+-- ========================================
+
+-- 启用积分相关表的RLS
+ALTER TABLE user_credits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credit_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credit_configs ENABLE ROW LEVEL SECURITY;
+
+-- user_credits 表策略
+CREATE POLICY "Users can view own credits" ON user_credits FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own credits" ON user_credits FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own credits" ON user_credits FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can view all credits" ON user_credits FOR SELECT USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'::user_role)
+);
+CREATE POLICY "Admins can insert all credits" ON user_credits FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'::user_role)
+);
+CREATE POLICY "Admins can update all credits" ON user_credits FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'::user_role)
+) WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'::user_role)
+);
+
+-- credit_transactions 表策略
+CREATE POLICY "Users can view own transactions" ON credit_transactions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own transactions" ON credit_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can view all transactions" ON credit_transactions FOR SELECT USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'::user_role)
+);
+CREATE POLICY "Admins can insert all transactions" ON credit_transactions FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'::user_role)
+);
+
+-- credit_configs 表策略
+CREATE POLICY "Anyone can view credit configs" ON credit_configs FOR SELECT USING (is_active = true);
+CREATE POLICY "Admins can manage credit configs" ON credit_configs FOR ALL USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'::user_role)
+);

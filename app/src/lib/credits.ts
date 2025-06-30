@@ -13,21 +13,23 @@ import type {
  */
 export async function getUserCredits(userId: string): Promise<UserCredits | null> {
   try {
+    // 先尝试查询，不使用 .single() 避免 PGRST116 错误
     const { data, error } = await supabase
       .from('user_credits')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .limit(1);
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // 用户积分账户不存在，创建一个
-        return await createUserCreditsAccount(userId);
-      }
       throw error;
     }
 
-    return data;
+    // 如果没有找到记录，创建积分账户
+    if (!data || data.length === 0) {
+      return await createUserCreditsAccount(userId);
+    }
+
+    return data[0];
   } catch (error) {
     console.error('获取用户积分失败:', error);
     throw error;
@@ -48,10 +50,15 @@ export async function createUserCreditsAccount(userId: string): Promise<UserCred
         frozen_credits: 0
       })
       .select()
-      .single();
+      .limit(1);
 
     if (error) throw error;
-    return data;
+
+    if (!data || data.length === 0) {
+      throw new Error('创建积分账户失败');
+    }
+
+    return data[0];
   } catch (error) {
     console.error('创建用户积分账户失败:', error);
     throw error;

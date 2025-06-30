@@ -17,20 +17,24 @@ export async function createRoleUpgradeRequest(requestData: {
     throw new Error('用户未登录');
   }
 
-  // 获取用户当前角色
+  // 获取用户当前角色，不使用 .single() 避免 PGRST116 错误
   const { data: userData, error: userError } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .limit(1);
 
   if (userError) {
     throw new Error('获取用户信息失败');
   }
 
+  if (!userData || userData.length === 0) {
+    throw new Error('用户信息不存在');
+  }
+
   const requestPayload = {
     user_id: user.id,
-    from_role: userData.role,
+    from_role: userData[0].role,
     to_role: requestData.to_role,
     reason: requestData.reason,
     experience: requestData.experience,

@@ -123,6 +123,10 @@ export default function RegisterPage() {
 
     try {
       await signUp(formData.email, formData.password, formData.username);
+
+      // 等待一小段时间确保数据库事务完成
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       await refreshUser();
       router.push('/dashboard');
     } catch (err) {
