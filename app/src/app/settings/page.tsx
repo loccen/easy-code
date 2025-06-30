@@ -121,19 +121,19 @@ export default function SettingsPage() {
       setLoading(true);
       setError('');
 
-      // 删除用户数据（通过RLS策略会自动级联删除相关数据）
-      const { error: deleteError } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', user.id);
+      // 尝试使用 RPC 函数删除用户（包括认证用户）
+      const { error: rpcError } = await supabase.rpc('delete_user_account');
 
-      if (deleteError) throw deleteError;
+      if (rpcError) {
+        // 如果 RPC 函数不存在或失败，回退到只删除用户数据
+        console.warn('RPC 删除失败，回退到删除用户数据:', rpcError);
 
-      // 删除认证用户
-      const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
-      
-      if (authError) {
-        console.warn('删除认证用户失败，但用户数据已删除:', authError);
+        const { error: deleteError } = await supabase
+          .from('users')
+          .delete()
+          .eq('id', user.id);
+
+        if (deleteError) throw deleteError;
       }
 
       // 登出并重定向
