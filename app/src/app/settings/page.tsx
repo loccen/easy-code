@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth, useAuthStore } from '@/stores/authStore';
 import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
+
 import { Button, Card, Input, Loading } from '@/components/ui';
 
 export default function SettingsPage() {
@@ -15,6 +16,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+
   
   // 密码修改表单
   const [passwordForm, setPasswordForm] = useState({
@@ -23,11 +26,7 @@ export default function SettingsPage() {
     confirmPassword: '',
   });
   
-  // 邮箱修改表单
-  const [emailForm, setEmailForm] = useState({
-    newEmail: '',
-    password: '',
-  });
+
   
   // 账户删除确认
   const [deleteConfirm, setDeleteConfirm] = useState('');
@@ -40,15 +39,21 @@ export default function SettingsPage() {
     }
   }, [authLoading, isAuthenticated, router]);
 
+  // 确保表单字段为空（防止浏览器自动填充）
+  useEffect(() => {
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+  }, []);
+
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPasswordForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setEmailForm(prev => ({ ...prev, [name]: value }));
-  };
+
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +64,12 @@ export default function SettingsPage() {
       setError('');
       setSuccess('');
 
-      // 验证密码
+      // 验证表单
+      if (!passwordForm.currentPassword) {
+        setError('请输入当前密码');
+        return;
+      }
+
       if (passwordForm.newPassword !== passwordForm.confirmPassword) {
         setError('新密码确认不匹配');
         return;
@@ -67,6 +77,17 @@ export default function SettingsPage() {
 
       if (passwordForm.newPassword.length < 6) {
         setError('新密码至少需要6个字符');
+        return;
+      }
+
+      // 先验证当前密码
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passwordForm.currentPassword
+      });
+
+      if (signInError) {
+        setError('当前密码不正确');
         return;
       }
 
@@ -91,34 +112,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
 
-    try {
-      setLoading(true);
-      setError('');
-      setSuccess('');
-
-      // 更新邮箱
-      const { error } = await supabase.auth.updateUser({
-        email: emailForm.newEmail
-      });
-
-      if (error) throw error;
-
-      setSuccess('邮箱更新请求已发送，请检查新邮箱中的确认邮件');
-      setEmailForm({
-        newEmail: '',
-        password: '',
-      });
-    } catch (err) {
-      console.error('更新邮箱失败:', err);
-      setError(err instanceof Error ? err.message : '更新邮箱失败');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDeleteAccount = async () => {
     if (!user || deleteConfirm !== 'DELETE') return;
@@ -203,6 +197,7 @@ export default function SettingsPage() {
                   value={passwordForm.currentPassword}
                   onChange={handlePasswordChange}
                   placeholder="请输入当前密码"
+                  autoComplete="current-password"
                   required
                 />
               </div>
@@ -218,6 +213,7 @@ export default function SettingsPage() {
                   value={passwordForm.newPassword}
                   onChange={handlePasswordChange}
                   placeholder="请输入新密码（至少6个字符）"
+                  autoComplete="new-password"
                   required
                 />
               </div>
@@ -233,6 +229,7 @@ export default function SettingsPage() {
                   value={passwordForm.confirmPassword}
                   onChange={handlePasswordChange}
                   placeholder="请再次输入新密码"
+                  autoComplete="new-password"
                   required
                 />
               </div>
@@ -249,55 +246,7 @@ export default function SettingsPage() {
             </form>
           </Card>
 
-          {/* 修改邮箱 */}
-          <Card className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-6">修改邮箱</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              当前邮箱：{user.email}
-            </p>
-            
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="newEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                  新邮箱地址
-                </label>
-                <Input
-                  id="newEmail"
-                  name="newEmail"
-                  type="email"
-                  value={emailForm.newEmail}
-                  onChange={handleEmailChange}
-                  placeholder="请输入新的邮箱地址"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  确认密码
-                </label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={emailForm.password}
-                  onChange={handleEmailChange}
-                  placeholder="请输入当前密码以确认身份"
-                  required
-                />
-              </div>
-              
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  loading={loading}
-                  disabled={loading}
-                >
-                  更新邮箱
-                </Button>
-              </div>
-            </form>
-          </Card>
+
 
           {/* 危险操作 */}
           <Card className="p-6 border-red-200">
