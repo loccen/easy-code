@@ -13,6 +13,7 @@ import { useDialogContext } from '@/components/DialogProvider';
 import PurchaseDialog from '@/components/PurchaseDialog';
 import { Project, User } from '@/types';
 import { getUserDisplayName, getUserDisplayEmail, getUserAvatarLetter } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -20,6 +21,9 @@ export default function ProjectDetailPage() {
   const { user } = useAuth();
   const { alert } = useDialogContext();
   const [project, setProject] = useState<Project | null>(null);
+  const [seller, setSeller] = useState<User | null>(null);
+  const [sellerLoading, setSellerLoading] = useState(false);
+  const [sellerError, setSellerError] = useState<string | null>(null);
   const [sellerProjects, setSellerProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +32,48 @@ export default function ProjectDetailPage() {
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
 
   const projectId = params.id as string;
+
+  // 单独获取卖家信息的函数
+  const loadSeller = useCallback(async (sellerId: string) => {
+    try {
+      setSellerLoading(true);
+      setSellerError(null);
+
+      const { data, error } = await supabase.rpc('get_public_user_info', {
+        user_id: sellerId
+      });
+
+      if (error) {
+        console.error('获取卖家信息失败:', error);
+        setSellerError('卖家信息获取失败');
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setSellerError('卖家信息获取失败');
+        return;
+      }
+
+      // 数据库函数返回数组，取第一个元素
+      const sellerData = data[0];
+      setSeller({
+        id: sellerData.id,
+        username: sellerData.username,
+        email: '', // 不返回邮箱信息以保护隐私
+        status: sellerData.status,
+        created_at: sellerData.created_at,
+        // 添加其他必需的字段
+        role: 'seller' as const,
+        email_verified: false,
+        updated_at: sellerData.created_at
+      });
+    } catch (err) {
+      console.error('获取卖家信息失败:', err);
+      setSellerError('卖家信息获取失败');
+    } finally {
+      setSellerLoading(false);
+    }
+  }, []);
 
   const loadProject = useCallback(async () => {
     try {
@@ -44,6 +90,16 @@ export default function ProjectDetailPage() {
       }
 
       setProject(projectData);
+
+      // 检查并加载卖家信息
+      if (projectData.seller_id) {
+        // 如果JOIN查询没有返回完整的卖家信息，单独查询
+        if (!projectData.seller || !projectData.seller.status) {
+          await loadSeller(projectData.seller_id);
+        } else {
+          setSeller(projectData.seller);
+        }
+      }
 
       // 增加浏览量
       await incrementProjectViews(projectId);
@@ -76,7 +132,7 @@ export default function ProjectDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, user]);
+  }, [projectId, user, loadSeller]);
 
   useEffect(() => {
     if (projectId) {
@@ -400,34 +456,46 @@ export default function ProjectDetailPage() {
             {/* 卖家信息 */}
             <Card className="p-6 mb-6">
               <h3 className="font-medium text-gray-900 mb-4">卖家信息</h3>
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-lg text-gray-600">
-                    {getUserAvatarLetter((project as Project & { seller?: User }).seller)}
-                  </span>
+              {sellerLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="text-gray-500">加载卖家信息中...</div>
                 </div>
-                <div>
-                  <div className="font-medium text-gray-900">
-                    {getUserDisplayName((project as Project & { seller?: User }).seller)}
+              ) : sellerError ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="text-red-500">{sellerError}</div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center mb-4">
+                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-lg text-gray-600">
+                        {getUserAvatarLetter(seller)}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {getUserDisplayName(seller)}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {getUserDisplayEmail(seller)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {getUserDisplayEmail((project as Project & { seller?: User }).seller)}
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">项目数量</span>
+                      <span className="font-medium">{sellerProjects.length + 1}个</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">加入时间</span>
+                      <span className="font-medium">
+                        {seller?.created_at ? new Date(seller.created_at).getFullYear() : '未知'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">项目数量</span>
-                  <span className="font-medium">{sellerProjects.length + 1}个</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">加入时间</span>
-                  <span className="font-medium">
-                    {(project as Project & { seller?: { username: string; email: string; created_at: string } }).seller?.created_at ? new Date((project as Project & { seller?: { username: string; email: string; created_at: string } }).seller!.created_at).getFullYear() : '未知'}
-                  </span>
-                </div>
-              </div>
+                </>
+              )}
               
               {sellerProjects.length > 0 && (
                 <Button variant="outline" className="w-full mt-4">

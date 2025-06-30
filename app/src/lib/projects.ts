@@ -12,12 +12,12 @@ export async function getPublishedProjects(options?: {
   sortBy?: 'created_at' | 'price' | 'rating_average' | 'download_count';
   sortOrder?: 'asc' | 'desc';
 }): Promise<{ projects: Project[]; total: number }> {
+  // 先获取项目基本信息
   let query = supabase
     .from('projects')
     .select(`
       *,
-      category:categories(name, slug),
-      seller:users(username, email)
+      category:categories(name, slug)
     `, { count: 'exact' })
     .eq('status', 'approved');
 
@@ -51,8 +51,40 @@ export async function getPublishedProjects(options?: {
     throw error;
   }
 
+  // 为每个项目获取卖家信息
+  const projects = await Promise.all(
+    (data || []).map(async (project: Project) => {
+      if (project.seller_id) {
+        try {
+          const { data: sellerData } = await supabase.rpc('get_public_user_info', {
+            user_id: project.seller_id
+          });
+
+          if (sellerData && sellerData.length > 0) {
+            const seller = sellerData[0];
+            project.seller = {
+              id: seller.id,
+              username: seller.username,
+              email: '', // 不返回邮箱以保护隐私
+              status: seller.status,
+              created_at: seller.created_at,
+              role: 'seller' as const,
+              email_verified: false,
+              updated_at: seller.created_at
+            };
+          }
+        } catch (err) {
+          console.error('获取卖家信息失败:', err);
+          // 如果获取卖家信息失败，设置为undefined
+          project.seller = undefined;
+        }
+      }
+      return project;
+    })
+  );
+
   return {
-    projects: data || [],
+    projects: projects || [],
     total: count || 0
   };
 }
@@ -66,7 +98,7 @@ export async function getProjectById(id: string, checkStatus: boolean = true): P
     .select(`
       *,
       category:categories(name, slug),
-      seller:users(username, email)
+      seller:users(username, email, status)
     `)
     .eq('id', id);
 
@@ -225,7 +257,7 @@ export async function getAllProjectsForAdmin(options?: {
     .select(`
       *,
       category:categories(name, slug),
-      seller:users(username, email)
+      seller:users(username, email, status)
     `, { count: 'exact' });
 
   // 状态筛选
@@ -402,7 +434,7 @@ export async function getPopularProjects(limit: number = 10): Promise<Project[]>
     .select(`
       *,
       category:categories(name, slug),
-      seller:users(username, email)
+      seller:users(username, email, status)
     `)
     .eq('status', 'approved')
     .order('download_count', { ascending: false })
