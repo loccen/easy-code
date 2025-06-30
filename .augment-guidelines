@@ -44,6 +44,118 @@
 - 提交代码前，必须运行build和lint命令，解决所有编译错误和告警
 - 择机进行 Git 提交，避免积累过多改动，请务必记住，当前的改动未完成测试前，不允许提交。
 
+### 6. TypeScript 和编译错误处理
+
+#### 6.1 类型定义最佳实践
+**问题**: 使用 `any` 类型导致 ESLint 错误和类型安全问题
+**解决方案**:
+- 始终为数据结构定义具体的 TypeScript 接口
+- 避免使用 `any` 类型，使用具体类型或联合类型
+- 为 API 响应、组件 props、状态变量定义明确类型
+
+```typescript
+// ❌ 错误做法
+const [searchResults, setSearchResults] = useState<any[]>([]);
+const [selectedUser, setSelectedUser] = useState<any>(null);
+
+// ✅ 正确做法
+interface UserSearchResult {
+  id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+  status: UserStatus;
+  created_at: string;
+}
+
+const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+const [selectedUser, setSelectedUser] = useState<UserWithCredits | null>(null);
+```
+
+#### 6.2 Supabase 查询类型处理
+**问题**: Supabase 关联查询返回的数据结构与 TypeScript 接口定义不匹配
+**解决方案**:
+- 理解 Supabase 关联查询的返回格式（通常是数组）
+- 创建数据转换函数来匹配 TypeScript 接口
+- 在 API 函数中进行类型转换
+
+```typescript
+// ❌ 问题：期望单个对象，但 Supabase 返回数组
+interface AdminCreditOperation {
+  users: { username: string; email: string; } | null;
+}
+
+// ✅ 解决方案：数据转换
+const { data, error } = await supabase
+  .from('credit_transactions')
+  .select('*, users!inner(username, email)');
+
+const transformedData = (data || []).map(item => ({
+  ...item,
+  users: Array.isArray(item.users) && item.users.length > 0 ? item.users[0] : null
+}));
+```
+
+#### 6.3 UI 组件类型安全
+**问题**: 使用不存在的组件属性值导致编译错误
+**解决方案**:
+- 使用组件前检查其 TypeScript 定义
+- 不要假设组件支持某些属性值
+- 建立项目内 UI 组件的使用文档
+
+```typescript
+// ❌ 错误：假设 Button 支持 'default' variant
+<Button variant="default">按钮</Button>
+
+// ✅ 正确：使用实际支持的 variant
+<Button variant="primary">按钮</Button>
+```
+
+#### 6.4 null 安全处理
+**问题**: 可能为 null 的对象访问导致编译错误
+**解决方案**:
+- 使用可选链操作符 (`?.`) 和空值合并操作符 (`??`)
+- 在必要时使用非空断言操作符 (`!`)，但要确保逻辑正确
+- 在函数开始处进行参数验证
+
+```typescript
+// ❌ 错误：直接访问可能为 null 的对象
+const credits = selectedUser.credits.available_credits;
+
+// ✅ 正确：使用可选链和空值合并
+const credits = selectedUser?.credits?.available_credits ?? 0;
+
+// ✅ 或者在验证后使用非空断言
+if (!selectedUser) {
+  setError('请先选择用户');
+  return;
+}
+const credits = selectedUser!.credits?.available_credits ?? 0;
+```
+
+#### 6.5 开发流程检查清单
+**编码前**:
+- [ ] 定义所需的 TypeScript 接口
+- [ ] 检查使用的 UI 组件类型定义
+- [ ] 了解 Supabase 查询返回的数据结构
+
+**编码中**:
+- [ ] 避免使用 `any` 类型
+- [ ] 为状态变量和函数参数添加类型注解
+- [ ] 处理可能为 null/undefined 的值
+
+**编码后**:
+- [ ] 运行 `npm run lint` 检查代码质量
+- [ ] 运行 `npm run build` 检查 TypeScript 编译
+- [ ] 解决所有类型错误和警告
+- [ ] 进行功能测试验证
+
+#### 6.6 常见错误模式和预防
+1. **数据转换错误**: 在 API 层进行数据格式转换，确保返回类型与接口匹配
+2. **组件属性错误**: 建立组件使用文档，记录支持的属性值
+3. **null 引用错误**: 建立统一的错误处理模式，在函数入口进行参数验证
+4. **类型推断失败**: 显式添加类型注解，不依赖 TypeScript 的类型推断
+
 ## 目录结构
 ```
 easy-code/

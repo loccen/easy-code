@@ -29,6 +29,37 @@ export interface UserProfile {
   updated_at: string;
 }
 
+// 管理员用户搜索结果类型
+export interface UserSearchResult {
+  id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+  status: UserStatus;
+  created_at: string;
+}
+
+// 用户详细信息（包含积分）
+export interface UserWithCredits extends UserSearchResult {
+  credits: UserCredits | null;
+}
+
+// 管理员操作记录类型
+export interface AdminCreditOperation {
+  id: string;
+  user_id: string;
+  amount: number;
+  transaction_type: CreditTransactionType;
+  description: string;
+  reference_id: string | null;
+  reference_type: string | null;
+  created_at: string;
+  users: {
+    username: string;
+    email: string;
+  } | null;
+}
+
 // 角色升级相关类型
 export type UpgradeRequestStatus = 'pending' | 'approved' | 'rejected';
 

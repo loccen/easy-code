@@ -1,11 +1,14 @@
 import { supabase } from './supabase';
-import type { 
-  UserCredits, 
-  CreditTransaction, 
+import type {
+  UserCredits,
+  CreditTransaction,
   CreditConfig,
   CreditTransactionType,
   AddCreditsRequest,
-  SpendCreditsRequest 
+  SpendCreditsRequest,
+  UserSearchResult,
+  UserWithCredits,
+  AdminCreditOperation
 } from '@/types';
 
 /**
@@ -262,7 +265,7 @@ export async function purchaseProject(userId: string, projectId: string, amount:
     if (!hasEnoughCredits) {
       throw new Error('积分余额不足');
     }
-    
+
     // 消费积分
     const transactionId = await spendUserCredits({
       user_id: userId,
@@ -272,10 +275,151 @@ export async function purchaseProject(userId: string, projectId: string, amount:
       reference_id: projectId,
       reference_type: 'project'
     });
-    
+
     return transactionId;
   } catch (error) {
     console.error('购买项目消费积分失败:', error);
+    throw error;
+  }
+}
+
+// ==================== 管理员积分管理功能 ====================
+
+/**
+ * 搜索用户（管理员功能）
+ */
+export async function searchUsers(query: string, limit: number = 10): Promise<UserSearchResult[]> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        username,
+        role,
+        status,
+        created_at
+      `)
+      .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
+      .eq('status', 'active')
+      .limit(limit);
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('搜索用户失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 管理员调整用户积分
+ */
+export async function adminAdjustUserCredits(
+  adminUserId: string,
+  targetUserId: string,
+  amount: number,
+  reason: string,
+  isAdd: boolean = true
+): Promise<string> {
+  try {
+    if (isAdd) {
+      // 增加积分
+      return await addUserCredits({
+        user_id: targetUserId,
+        amount: Math.abs(amount),
+        transaction_type: 'admin_adjust',
+        description: `管理员调整：${reason}`,
+        reference_id: adminUserId,
+        reference_type: 'admin_operation'
+      });
+    } else {
+      // 减少积分
+      return await spendUserCredits({
+        user_id: targetUserId,
+        amount: Math.abs(amount),
+        transaction_type: 'admin_adjust',
+        description: `管理员调整：${reason}`,
+        reference_id: adminUserId,
+        reference_type: 'admin_operation'
+      });
+    }
+  } catch (error) {
+    console.error('管理员调整用户积分失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取用户详细信息（包含积分）
+ */
+export async function getUserWithCredits(userId: string): Promise<UserWithCredits> {
+  try {
+    // 获取用户基本信息
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        username,
+        role,
+        status,
+        created_at
+      `)
+      .eq('id', userId)
+      .single();
+
+    if (userError) throw userError;
+
+    // 获取用户积分信息
+    const credits = await getUserCredits(userId);
+
+    return {
+      ...userData,
+      credits
+    };
+  } catch (error) {
+    console.error('获取用户详细信息失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取管理员操作记录
+ */
+export async function getAdminCreditOperations(
+  limit: number = 20,
+  offset: number = 0
+): Promise<AdminCreditOperation[]> {
+  try {
+    const { data, error } = await supabase
+      .from('credit_transactions')
+      .select(`
+        id,
+        user_id,
+        amount,
+        transaction_type,
+        description,
+        reference_id,
+        reference_type,
+        created_at,
+        users!inner(username, email)
+      `)
+      .eq('transaction_type', 'admin_adjust')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    // 转换数据格式以匹配类型定义
+    const transformedData = (data || []).map(item => ({
+      ...item,
+      users: Array.isArray(item.users) && item.users.length > 0 ? item.users[0] : null
+    }));
+
+    return transformedData;
+  } catch (error) {
+    console.error('获取管理员操作记录失败:', error);
     throw error;
   }
 }
