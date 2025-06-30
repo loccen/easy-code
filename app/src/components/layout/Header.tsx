@@ -170,6 +170,13 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                         仪表板
                       </Link>
                       <Link
+                        href="/dashboard/purchases"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        我的购买
+                      </Link>
+                      <Link
                         href="/profile"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsMenuOpen(false)}

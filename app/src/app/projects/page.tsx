@@ -7,9 +7,12 @@ import Image from 'next/image';
 import { Layout } from '@/components/layout';
 import { Button, Card, CardContent, Badge, Input } from '@/components/ui';
 import { getPublishedProjects, searchProjects } from '@/lib/projects';
+import { checkUserPurchased } from '@/lib/orders';
 import { getActiveCategories } from '@/lib/categories';
+import { useAuth } from '@/stores/authStore';
 import { Project, Category, User } from '@/types';
 import { getUserDisplayName, getUserAvatarLetter } from '@/lib/auth';
+import { CheckCircle } from 'lucide-react';
 
 function ProjectsPageContent() {
   const searchParams = useSearchParams();
@@ -286,9 +289,32 @@ function ProjectsPageContent() {
 
 // 项目卡片组件
 function ProjectCard({ project }: { project: Project }) {
+  const { user } = useAuth();
+  const [isPurchased, setIsPurchased] = useState(false);
+  const [checkingPurchase, setCheckingPurchase] = useState(false);
+
   const formatPrice = (price: number) => {
     return `${price.toLocaleString()} 积分`;
   };
+
+  // 检查购买状态
+  useEffect(() => {
+    const checkPurchaseStatus = async () => {
+      if (!user?.id || project.seller_id === user.id) return;
+
+      setCheckingPurchase(true);
+      try {
+        const purchased = await checkUserPurchased(user.id, project.id);
+        setIsPurchased(purchased);
+      } catch (err) {
+        console.error('检查购买状态失败:', err);
+      } finally {
+        setCheckingPurchase(false);
+      }
+    };
+
+    checkPurchaseStatus();
+  }, [user?.id, project.id, project.seller_id]);
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -309,6 +335,21 @@ function ProjectCard({ project }: { project: Project }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
                 <p className="text-sm">暂无图片</p>
+              </div>
+            )}
+
+            {/* 已购买标识 */}
+            {isPurchased && (
+              <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                已购买
+              </div>
+            )}
+
+            {/* 购买状态检查中的加载指示器 */}
+            {checkingPurchase && (
+              <div className="absolute top-2 right-2 bg-gray-500 text-white px-2 py-1 rounded-full text-xs">
+                检查中...
               </div>
             )}
           </div>

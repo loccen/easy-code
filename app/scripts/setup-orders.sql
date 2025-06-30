@@ -80,7 +80,7 @@ CREATE TABLE order_downloads (
 
 -- 用户购买历史视图（便于查询）
 CREATE VIEW user_purchase_history AS
-SELECT 
+SELECT
     o.id as order_id,
     o.order_number,
     o.buyer_id,
@@ -92,7 +92,7 @@ SELECT
     o.completed_at,
     p.title as project_title,
     p.short_description as project_description,
-    p.thumbnail_url as project_thumbnail,
+    NULL as project_thumbnail,  -- 暂时设为 NULL，因为表中没有此字段
     p.file_urls as project_files,
     s.username as seller_username,
     s.email as seller_email,
@@ -103,6 +103,70 @@ FROM orders o
 JOIN projects p ON o.project_id = p.id
 JOIN users s ON o.seller_id = s.id
 WHERE o.status = 'completed';
+
+-- 创建获取用户购买历史的安全函数
+CREATE OR REPLACE FUNCTION get_user_purchase_history(
+    p_user_id UUID,
+    p_limit INTEGER DEFAULT 20,
+    p_offset INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+    order_id UUID,
+    order_number VARCHAR(32),
+    buyer_id UUID,
+    project_id UUID,
+    final_amount INTEGER,
+    payment_method payment_method,
+    status order_status,
+    created_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    project_title VARCHAR(200),
+    project_description VARCHAR(500),
+    project_thumbnail TEXT,
+    project_files TEXT[],
+    seller_username VARCHAR(50),
+    seller_email VARCHAR(255),
+    download_count BIGINT,
+    last_download_at TIMESTAMP WITH TIME ZONE
+)
+SECURITY DEFINER
+LANGUAGE plpgsql AS $$
+BEGIN
+    -- 检查用户权限：只能查看自己的购买历史或管理员可以查看所有
+    IF p_user_id != auth.uid() AND NOT EXISTS (
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
+    ) THEN
+        RAISE EXCEPTION '没有权限查看此用户的购买历史';
+    END IF;
+
+    RETURN QUERY
+    SELECT
+        o.id,
+        o.order_number,
+        o.buyer_id,
+        o.project_id,
+        o.final_amount,
+        o.payment_method,
+        o.status,
+        o.created_at,
+        o.completed_at,
+        p.title,
+        p.short_description,
+        NULL::TEXT, -- project_thumbnail
+        p.file_urls,
+        s.username,
+        s.email,
+        (SELECT COUNT(*) FROM order_downloads WHERE order_downloads.order_id = o.id),
+        (SELECT MAX(order_downloads.created_at) FROM order_downloads WHERE order_downloads.order_id = o.id)
+    FROM orders o
+    JOIN projects p ON o.project_id = p.id
+    JOIN users s ON o.seller_id = s.id
+    WHERE o.status = 'completed' AND o.buyer_id = p_user_id
+    ORDER BY o.created_at DESC
+    LIMIT p_limit OFFSET p_offset;
+END;
+$$;
 
 -- 卖家销售统计视图
 CREATE VIEW seller_sales_stats AS
@@ -157,7 +221,9 @@ CREATE OR REPLACE FUNCTION create_order(
     p_project_id UUID,
     p_payment_method payment_method DEFAULT 'credits'
 )
-RETURNS UUID AS $$
+RETURNS UUID
+SECURITY DEFINER
+LANGUAGE plpgsql AS $$
 DECLARE
     v_order_id UUID;
     v_seller_id UUID;
@@ -226,11 +292,13 @@ BEGIN
     
     RETURN v_order_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- 完成积分支付订单的存储过程
 CREATE OR REPLACE FUNCTION complete_credits_order(p_order_id UUID)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+SECURITY DEFINER
+LANGUAGE plpgsql AS $$
 DECLARE
     v_order orders%ROWTYPE;
     v_transaction_id UUID;
@@ -305,7 +373,7 @@ BEGIN
     
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- 记录文件下载的函数
 CREATE OR REPLACE FUNCTION record_file_download(
@@ -317,7 +385,9 @@ CREATE OR REPLACE FUNCTION record_file_download(
     p_download_ip INET DEFAULT NULL,
     p_user_agent TEXT DEFAULT NULL
 )
-RETURNS UUID AS $$
+RETURNS UUID
+SECURITY DEFINER
+LANGUAGE plpgsql AS $$
 DECLARE
     v_download_id UUID;
 BEGIN
@@ -352,7 +422,7 @@ BEGIN
     
     RETURN v_download_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- 自动更新 updated_at 字段的触发器
 CREATE OR REPLACE FUNCTION update_updated_at_column()

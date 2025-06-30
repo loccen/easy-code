@@ -106,14 +106,23 @@ export async function getUserPurchaseHistory(
   offset: number = 0
 ): Promise<{ purchases: PurchaseHistoryItem[]; total: number }> {
   try {
-    const { data, error, count } = await supabase
-      .from('user_purchase_history')
-      .select('*', { count: 'exact' })
-      .eq('buyer_id', userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    // 使用安全函数获取购买历史
+    const { data, error } = await supabase.rpc('get_user_purchase_history', {
+      p_user_id: userId,
+      p_limit: limit,
+      p_offset: offset
+    });
 
     if (error) throw error;
+
+    // 获取总数（需要单独查询）
+    const { count, error: countError } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('buyer_id', userId)
+      .eq('status', 'completed');
+
+    if (countError) throw countError;
 
     return {
       purchases: data || [],

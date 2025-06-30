@@ -5,6 +5,7 @@ import { Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
 import { getUserCredits } from '@/lib/credits';
 import { createOrder, completeCreditsOrder } from '@/lib/orders';
+import { refreshCreditBalance } from '@/components/CreditBalance';
 import type { Project, UserCredits } from '@/types';
 import { X, Coins } from 'lucide-react';
 
@@ -60,6 +61,10 @@ export default function PurchaseDialog({
 
       // 完成积分支付
       await completeCreditsOrder(orderId);
+
+      // 刷新积分余额
+      refreshCreditBalance();
+
       onSuccess();
     } catch (err) {
       console.error('购买失败:', err);
