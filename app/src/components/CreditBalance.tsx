@@ -11,6 +11,13 @@ interface CreditBalanceProps {
   className?: string;
 }
 
+// 全局事件系统用于刷新积分余额
+const creditRefreshEvents = new EventTarget();
+
+export const refreshCreditBalance = () => {
+  creditRefreshEvents.dispatchEvent(new CustomEvent('refresh'));
+};
+
 export default function CreditBalance({ showLabel = true, className = '' }: CreditBalanceProps) {
   const { user } = useAuthStore();
   const [credits, setCredits] = useState<UserCredits | null>(null);
@@ -40,6 +47,20 @@ export default function CreditBalance({ showLabel = true, className = '' }: Cred
     }
 
     loadCredits();
+  }, [user?.id, loadCredits]);
+
+  // 监听全局刷新事件
+  useEffect(() => {
+    const handleRefresh = () => {
+      if (user?.id) {
+        loadCredits();
+      }
+    };
+
+    creditRefreshEvents.addEventListener('refresh', handleRefresh);
+    return () => {
+      creditRefreshEvents.removeEventListener('refresh', handleRefresh);
+    };
   }, [user?.id, loadCredits]);
 
   if (!user) {

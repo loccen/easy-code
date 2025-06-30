@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/layout/Layout';
 import { Button, Card, Input } from '@/components/ui';
 import { getAllCreditConfigs, searchUsers, getUserWithCredits, adminAdjustUserCredits, getAdminCreditOperations } from '@/lib/credits';
+import { refreshCreditBalance } from '@/components/CreditBalance';
 import { supabase } from '@/lib/supabase';
 import type { CreditConfig, UserSearchResult, UserWithCredits, AdminCreditOperation } from '@/types';
 import { Save, RefreshCw, Settings, Search, Plus, Minus, User, History } from 'lucide-react';
@@ -220,6 +221,9 @@ export default function AdminCreditsPage() {
       setSelectedUser(updatedUser);
       await loadOperationHistory();
 
+      // 刷新header中的积分余额显示
+      refreshCreditBalance();
+
       // 清空表单
       setCreditAmount('');
       setAdjustReason('');
@@ -244,10 +248,14 @@ export default function AdminCreditsPage() {
 
   const loadOperationHistory = async () => {
     try {
+      console.log('开始加载操作历史...');
       const history = await getAdminCreditOperations(20);
+      console.log('加载到的操作历史:', history);
       setOperationHistory(history);
     } catch (err) {
       console.error('加载操作历史失败:', err);
+      // 设置空数组以避免显示加载状态
+      setOperationHistory([]);
     }
   };
 
@@ -611,7 +619,7 @@ export default function AdminCreditsPage() {
                       <tr key={record.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
-                            {record.users?.username || '未知用户'}
+                            {record.users?.username || (record.users?.email === null ? '注销用户' : '未知用户')}
                           </div>
                           <div className="text-sm text-gray-500">
                             {record.users?.email || ''}

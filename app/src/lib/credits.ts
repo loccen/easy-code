@@ -403,7 +403,7 @@ export async function getAdminCreditOperations(
         reference_id,
         reference_type,
         created_at,
-        users!inner(username, email)
+        users!user_id(username, email)
       `)
       .eq('transaction_type', 'admin_adjust')
       .order('created_at', { ascending: false })
@@ -411,11 +411,13 @@ export async function getAdminCreditOperations(
 
     if (error) throw error;
 
-    // 转换数据格式以匹配类型定义
+    // 确保数据格式正确
     const transformedData = (data || []).map(item => ({
       ...item,
-      users: Array.isArray(item.users) && item.users.length > 0 ? item.users[0] : null
-    }));
+      users: item.users && typeof item.users === 'object' && !Array.isArray(item.users)
+        ? item.users
+        : null
+    })) as AdminCreditOperation[];
 
     return transformedData;
   } catch (error) {
