@@ -226,7 +226,7 @@ export async function checkEmailAvailable(email: string): Promise<boolean> {
 /**
  * 获取用户显示名称，处理已删除用户的情况
  */
-export function getUserDisplayName(user: any): string {
+export function getUserDisplayName(user: User | null | undefined): string {
   if (!user) return '匿名用户';
   if (user.status === 'deleted') return '卖家已注销';
   return user.username || '匿名用户';
@@ -235,7 +235,7 @@ export function getUserDisplayName(user: any): string {
 /**
  * 获取用户显示邮箱，处理已删除用户的情况
  */
-export function getUserDisplayEmail(user: any): string {
+export function getUserDisplayEmail(user: User | null | undefined): string {
   if (!user) return '';
   if (user.status === 'deleted') return '';
   return user.email || '';
@@ -244,7 +244,7 @@ export function getUserDisplayEmail(user: any): string {
 /**
  * 获取用户头像字母，处理已删除用户的情况
  */
-export function getUserAvatarLetter(user: any): string {
+export function getUserAvatarLetter(user: User | null | undefined): string {
   if (!user) return 'U';
   if (user.status === 'deleted') return '?';
   return user.username?.[0]?.toUpperCase() || 'U';

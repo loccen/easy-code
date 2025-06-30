@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, useAuthStore } from '@/stores/authStore';
+import { useAuth } from '@/stores/authStore';
 import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
 
@@ -10,7 +10,6 @@ import { Button, Card, Input, Loading } from '@/components/ui';
 
 export default function SettingsPage() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { signOut } = useAuthStore();
   const router = useRouter();
   
   const [loading, setLoading] = useState(false);
@@ -121,28 +120,23 @@ export default function SettingsPage() {
       setLoading(true);
       setError('');
 
-      // 使用软删除函数标记用户为已删除状态
+      // 使用软删除函数，现在它会同时删除 auth.users 记录
       const { error: rpcError } = await supabase.rpc('soft_delete_user_account');
 
       if (rpcError) {
-        // 如果 RPC 函数失败，回退到手动软删除
-        console.warn('RPC 软删除失败，回退到手动软删除:', rpcError);
-
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            status: 'deleted',
-            email: null,
-            username: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id);
-
-        if (updateError) throw updateError;
+        console.error('删除账户失败:', rpcError);
+        throw new Error(rpcError.message || '删除账户失败');
       }
 
-      // 登出并重定向
-      await signOut();
+      // 删除成功后，清理前端认证状态
+      // 由于后端已经删除了 auth.users 记录，前端 session 会自动失效
+      // 但我们需要手动清理本地状态
+      await supabase.auth.signOut();
+
+      // 等待一下确保状态更新
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 重定向到首页
       router.push('/');
     } catch (err) {
       console.error('删除账户失败:', err);

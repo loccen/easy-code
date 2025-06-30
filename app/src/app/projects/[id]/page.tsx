@@ -11,7 +11,7 @@ import { checkUserPurchased } from '@/lib/orders';
 import { useAuth } from '@/stores/authStore';
 import { useDialogContext } from '@/components/DialogProvider';
 import PurchaseDialog from '@/components/PurchaseDialog';
-import { Project } from '@/types';
+import { Project, User } from '@/types';
 import { getUserDisplayName, getUserDisplayEmail, getUserAvatarLetter } from '@/lib/auth';
 
 export default function ProjectDetailPage() {
@@ -403,15 +403,15 @@ export default function ProjectDetailPage() {
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center mr-3">
                   <span className="text-lg text-gray-600">
-                    {getUserAvatarLetter((project as Project & { seller?: any }).seller)}
+                    {getUserAvatarLetter((project as Project & { seller?: User }).seller)}
                   </span>
                 </div>
                 <div>
                   <div className="font-medium text-gray-900">
-                    {getUserDisplayName((project as Project & { seller?: any }).seller)}
+                    {getUserDisplayName((project as Project & { seller?: User }).seller)}
                   </div>
                   <div className="text-sm text-gray-600">
-                    {getUserDisplayEmail((project as Project & { seller?: any }).seller)}
+                    {getUserDisplayEmail((project as Project & { seller?: User }).seller)}
                   </div>
                 </div>
               </div>

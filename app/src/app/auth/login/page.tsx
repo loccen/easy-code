@@ -25,7 +25,32 @@ export default function LoginPage() {
       await refreshUser();
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '登录失败');
+      console.error('登录错误:', err);
+
+      // 将 Supabase 错误信息转换为用户友好的中文提示
+      let errorMessage = '登录失败';
+
+      if (err instanceof Error) {
+        const message = err.message.toLowerCase();
+
+        if (message.includes('invalid login credentials') ||
+            message.includes('invalid credentials') ||
+            message.includes('email not confirmed')) {
+          errorMessage = '邮箱或密码错误，请检查后重试';
+        } else if (message.includes('email not found') ||
+                   message.includes('user not found')) {
+          errorMessage = '该邮箱尚未注册';
+        } else if (message.includes('too many requests')) {
+          errorMessage = '登录尝试过于频繁，请稍后再试';
+        } else if (message.includes('network') ||
+                   message.includes('connection')) {
+          errorMessage = '网络连接异常，请检查网络后重试';
+        } else {
+          errorMessage = '登录失败，请稍后重试';
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

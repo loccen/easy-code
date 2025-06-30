@@ -1,6 +1,6 @@
 // 用户相关类型
 export type UserRole = 'buyer' | 'seller' | 'admin';
-export type UserStatus = 'active' | 'inactive' | 'suspended' | 'banned';
+export type UserStatus = 'active' | 'inactive' | 'suspended' | 'banned' | 'deleted';
 
 export interface User {
   id: string;
