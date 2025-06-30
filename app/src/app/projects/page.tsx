@@ -9,6 +9,7 @@ import { Button, Card, CardContent, Badge, Input } from '@/components/ui';
 import { getPublishedProjects, searchProjects } from '@/lib/projects';
 import { getActiveCategories } from '@/lib/categories';
 import { Project, Category } from '@/types';
+import { getUserDisplayName, getUserAvatarLetter } from '@/lib/auth';
 
 function ProjectsPageContent() {
   const searchParams = useSearchParams();
@@ -360,11 +361,11 @@ function ProjectCard({ project }: { project: Project }) {
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
                   <span className="text-xs text-gray-600">
-                    {(project as Project & { seller?: { username: string } }).seller?.username?.[0]?.toUpperCase() || 'U'}
+                    {getUserAvatarLetter((project as Project & { seller?: any }).seller)}
                   </span>
                 </div>
                 <span className="text-sm text-gray-600">
-                  {(project as Project & { seller?: { username: string } }).seller?.username || '匿名用户'}
+                  {getUserDisplayName((project as Project & { seller?: any }).seller)}
                 </span>
               </div>
             </div>

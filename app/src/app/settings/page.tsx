@@ -121,19 +121,24 @@ export default function SettingsPage() {
       setLoading(true);
       setError('');
 
-      // 尝试使用 RPC 函数删除用户（包括认证用户）
-      const { error: rpcError } = await supabase.rpc('delete_user_account');
+      // 使用软删除函数标记用户为已删除状态
+      const { error: rpcError } = await supabase.rpc('soft_delete_user_account');
 
       if (rpcError) {
-        // 如果 RPC 函数不存在或失败，回退到只删除用户数据
-        console.warn('RPC 删除失败，回退到删除用户数据:', rpcError);
+        // 如果 RPC 函数失败，回退到手动软删除
+        console.warn('RPC 软删除失败，回退到手动软删除:', rpcError);
 
-        const { error: deleteError } = await supabase
+        const { error: updateError } = await supabase
           .from('users')
-          .delete()
+          .update({
+            status: 'deleted',
+            email: null,
+            username: null,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', user.id);
 
-        if (deleteError) throw deleteError;
+        if (updateError) throw updateError;
       }
 
       // 登出并重定向

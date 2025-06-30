@@ -119,6 +119,14 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
 
+    // 检查用户状态，如果是已删除状态则返回null
+    if (userData[0].status === 'deleted') {
+      console.warn('用户已删除:', user.id);
+      // 自动登出已删除的用户
+      await supabase.auth.signOut();
+      return null;
+    }
+
     // 获取用户资料，不使用 .single()
     const { data: profileData, error: profileError } = await supabase
       .from('user_profiles')
@@ -213,4 +221,31 @@ export async function checkEmailAvailable(email: string): Promise<boolean> {
     console.error('检查邮箱错误:', error);
     throw error;
   }
+}
+
+/**
+ * 获取用户显示名称，处理已删除用户的情况
+ */
+export function getUserDisplayName(user: any): string {
+  if (!user) return '匿名用户';
+  if (user.status === 'deleted') return '卖家已注销';
+  return user.username || '匿名用户';
+}
+
+/**
+ * 获取用户显示邮箱，处理已删除用户的情况
+ */
+export function getUserDisplayEmail(user: any): string {
+  if (!user) return '';
+  if (user.status === 'deleted') return '';
+  return user.email || '';
+}
+
+/**
+ * 获取用户头像字母，处理已删除用户的情况
+ */
+export function getUserAvatarLetter(user: any): string {
+  if (!user) return 'U';
+  if (user.status === 'deleted') return '?';
+  return user.username?.[0]?.toUpperCase() || 'U';
 }
