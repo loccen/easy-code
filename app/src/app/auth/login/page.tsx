@@ -121,22 +121,22 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setEmail('seller@easycode.com');
-                  setPassword('EasyCode2024!@#');
+                  setEmail('testuser2@example.com');
+                  setPassword('password123');
                 }}
                 className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
               >
-                卖家账户
+                测试账户1
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setEmail('buyer@easycode.com');
-                  setPassword('EasyCode2024!@#');
+                  setEmail('test@example.com');
+                  setPassword('password123');
                 }}
                 className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
               >
-                买家账户
+                测试账户2
               </button>
             </div>
           </div>
