@@ -195,7 +195,8 @@ BEGIN
     
     -- 更新积分账户
     UPDATE user_credits
-    SET 
+    SET
+        total_credits = total_credits - p_amount,
         available_credits = available_credits - p_amount,
         updated_at = NOW()
     WHERE user_id = p_user_id;

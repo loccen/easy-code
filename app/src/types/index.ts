@@ -128,8 +128,8 @@ export interface Project {
   description: string;
   short_description?: string;
   category_id?: string;
-  price: number;
-  currency: string;
+  price: number; // 积分价格
+  currency: string; // 保留字段，固定为 'CREDITS'
   status: ProjectStatus;
   is_dockerized: boolean;
   docker_verified: boolean;
@@ -165,6 +165,85 @@ export interface Category {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// 订单系统相关类型
+export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled' | 'refunded';
+export type PaymentMethod = 'credits' | 'alipay' | 'wechat' | 'stripe' | 'paypal';
+
+export interface Order {
+  id: string;
+  order_number: string;
+  buyer_id: string;
+  project_id: string;
+  seller_id: string;
+  original_price: number;
+  discount_amount: number;
+  final_amount: number;
+  payment_method: PaymentMethod;
+  payment_transaction_id?: string;
+  status: OrderStatus;
+  created_at: string;
+  updated_at: string;
+  paid_at?: string;
+  completed_at?: string;
+  cancelled_at?: string;
+  buyer_note?: string;
+  seller_note?: string;
+  admin_note?: string;
+  // 关联数据
+  project?: Project;
+  buyer?: User;
+  seller?: User;
+}
+
+export interface OrderDownload {
+  id: string;
+  order_id: string;
+  user_id: string;
+  file_url: string;
+  file_name: string;
+  file_size?: number;
+  download_ip?: string;
+  user_agent?: string;
+  created_at: string;
+}
+
+export interface CreateOrderRequest {
+  project_id: string;
+  payment_method?: PaymentMethod;
+}
+
+export interface PurchaseHistoryItem {
+  order_id: string;
+  order_number: string;
+  buyer_id: string;
+  project_id: string;
+  final_amount: number;
+  payment_method: PaymentMethod;
+  status: OrderStatus;
+  created_at: string;
+  completed_at?: string;
+  project_title: string;
+  project_description?: string;
+  project_thumbnail?: string;
+  project_files?: string[];
+  seller_username: string;
+  seller_email: string;
+  download_count: number;
+  last_download_at?: string;
+}
+
+export interface SalesStats {
+  seller_id: string;
+  total_orders: number;
+  completed_orders: number;
+  pending_orders: number;
+  cancelled_orders: number;
+  total_revenue: number;
+  avg_order_value: number;
+  first_sale_at?: string;
+  last_sale_at?: string;
 }
 
 // API响应类型

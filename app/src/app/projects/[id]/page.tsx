@@ -7,8 +7,10 @@ import Image from 'next/image';
 import { Layout } from '@/components/layout';
 import { Button, Card, Badge } from '@/components/ui';
 import { getProjectById, incrementProjectViews, getSellerProjects } from '@/lib/projects';
+import { checkUserPurchased } from '@/lib/orders';
 import { useAuth } from '@/stores/authStore';
 import { useDialogContext } from '@/components/DialogProvider';
+import PurchaseDialog from '@/components/PurchaseDialog';
 import { Project } from '@/types';
 
 export default function ProjectDetailPage() {
@@ -20,6 +22,9 @@ export default function ProjectDetailPage() {
   const [sellerProjects, setSellerProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPurchased, setIsPurchased] = useState(false);
+  const [checkingPurchase, setCheckingPurchase] = useState(false);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
 
   const projectId = params.id as string;
 
@@ -38,10 +43,23 @@ export default function ProjectDetailPage() {
       }
 
       setProject(projectData);
-      
+
       // 增加浏览量
       await incrementProjectViews(projectId);
-      
+
+      // 检查用户是否已购买（仅登录用户）
+      if (user?.id && projectData.seller_id !== user.id) {
+        setCheckingPurchase(true);
+        try {
+          const purchased = await checkUserPurchased(user.id, projectId);
+          setIsPurchased(purchased);
+        } catch (err) {
+          console.error('检查购买状态失败:', err);
+        } finally {
+          setCheckingPurchase(false);
+        }
+      }
+
       // 加载卖家的其他项目
       if (projectData.seller_id) {
         try {
@@ -65,11 +83,8 @@ export default function ProjectDetailPage() {
     }
   }, [projectId, loadProject]);
 
-  const formatPrice = (price: number, currency: string = 'CNY') => {
-    if (currency === 'CNY') {
-      return `¥${price}`;
-    }
-    return `$${price}`;
+  const formatPrice = (price: number) => {
+    return `${price.toLocaleString()} 积分`;
   };
 
   const handlePurchase = async () => {
@@ -77,22 +92,58 @@ export default function ProjectDetailPage() {
       router.push('/auth/login');
       return;
     }
-    // TODO: 实现购买逻辑
+
+    if (!project) return;
+
+    // 检查是否是自己的项目
+    if (project.seller_id === user.id) {
+      await alert({
+        type: 'warning',
+        message: '不能购买自己的项目'
+      });
+      return;
+    }
+
+    // 检查是否已购买
+    if (isPurchased) {
+      await alert({
+        type: 'info',
+        message: '您已经购买过此项目，可以直接下载'
+      });
+      return;
+    }
+
+    setShowPurchaseDialog(true);
+  };
+
+  const handlePurchaseSuccess = async () => {
+    setShowPurchaseDialog(false);
+    setIsPurchased(true);
+
     await alert({
-      type: 'info',
-      message: '购买功能正在开发中...'
+      type: 'success',
+      message: '购买成功！您现在可以下载项目文件了。'
     });
   };
 
-  const handleAddToCart = async () => {
+  const handleDownload = async () => {
     if (!user) {
       router.push('/auth/login');
       return;
     }
-    // TODO: 实现加入购物车逻辑
+
+    if (!isPurchased && project?.seller_id !== user.id) {
+      await alert({
+        type: 'warning',
+        message: '请先购买项目才能下载'
+      });
+      return;
+    }
+
+    // TODO: 实现文件下载逻辑
     await alert({
       type: 'info',
-      message: '购物车功能正在开发中...'
+      message: '文件下载功能正在开发中...'
     });
   };
 
@@ -188,7 +239,7 @@ export default function ProjectDetailPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-blue-600 mb-1">
-                    {formatPrice(project.price, project.currency)}
+                    {formatPrice(project.price)}
                   </div>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span>👁 {project.view_count || 0}</span>
@@ -276,18 +327,40 @@ export default function ProjectDetailPage() {
             <Card className="p-6 mb-6 sticky top-4">
               <div className="text-center mb-6">
                 <div className="text-3xl font-bold text-blue-600 mb-2">
-                  {formatPrice(project.price, project.currency)}
+                  {formatPrice(project.price)}
                 </div>
                 <p className="text-sm text-gray-600">一次购买，永久使用</p>
               </div>
 
               <div className="space-y-3">
-                <Button onClick={handlePurchase} className="w-full" size="lg">
-                  立即购买
-                </Button>
-                <Button onClick={handleAddToCart} variant="outline" className="w-full">
-                  加入购物车
-                </Button>
+                {!user ? (
+                  <Button onClick={handlePurchase} className="w-full" size="lg">
+                    登录后购买
+                  </Button>
+                ) : project.seller_id === user.id ? (
+                  <Button variant="outline" className="w-full" size="lg" disabled>
+                    这是您的项目
+                  </Button>
+                ) : isPurchased ? (
+                  <Button onClick={handleDownload} className="w-full bg-green-600 hover:bg-green-700 text-white" size="lg">
+                    立即下载
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handlePurchase}
+                    className="w-full"
+                    size="lg"
+                    disabled={checkingPurchase}
+                  >
+                    {checkingPurchase ? '检查中...' : '立即购买'}
+                  </Button>
+                )}
+
+                {user && project.seller_id !== user.id && !isPurchased && (
+                  <p className="text-xs text-gray-500 text-center">
+                    购买后可永久下载和使用
+                  </p>
+                )}
               </div>
 
               <div className="mt-6 pt-6 border-t border-gray-200">
@@ -380,7 +453,7 @@ export default function ProjectDetailPage() {
                             {otherProject.title}
                           </div>
                           <div className="text-sm text-blue-600">
-                            {formatPrice(otherProject.price, otherProject.currency)}
+                            {formatPrice(otherProject.price)}
                           </div>
                         </div>
                       </div>
@@ -391,6 +464,16 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </div>
+
+        {/* 购买对话框 */}
+        {project && (
+          <PurchaseDialog
+            project={project}
+            isOpen={showPurchaseDialog}
+            onClose={() => setShowPurchaseDialog(false)}
+            onSuccess={handlePurchaseSuccess}
+          />
+        )}
       </div>
     </Layout>
   );
