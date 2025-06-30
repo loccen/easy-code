@@ -67,6 +67,21 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- 创建用户名和邮箱可用性检查函数
+CREATE OR REPLACE FUNCTION check_username_available(username_to_check text)
+RETURNS boolean AS $$
+BEGIN
+  RETURN NOT EXISTS (SELECT 1 FROM users WHERE username = username_to_check);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION check_email_available(email_to_check text)
+RETURNS boolean AS $$
+BEGIN
+  RETURN NOT EXISTS (SELECT 1 FROM users WHERE email = email_to_check);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 创建用户更新触发器
 CREATE OR REPLACE FUNCTION public.handle_user_update()
 RETURNS trigger AS $$

@@ -155,23 +155,39 @@ export async function updatePassword(password: string) {
  */
 export async function checkUsernameAvailable(username: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('users')
-      .select('username')
-      .eq('username', username)
-      .single();
+    const { data, error } = await supabase.rpc('check_username_available', {
+      username_to_check: username
+    });
 
-    if (error && error.code === 'PGRST116') {
-      // 没有找到记录，用户名可用
-      return true;
+    if (error) {
+      console.error('检查用户名错误:', error);
+      throw error;
     }
 
-    if (error) throw error;
-
-    // 找到记录，用户名不可用
-    return false;
+    return data;
   } catch (error) {
     console.error('检查用户名错误:', error);
-    return false;
+    throw error;
+  }
+}
+
+/**
+ * 检查邮箱是否可用
+ */
+export async function checkEmailAvailable(email: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('check_email_available', {
+      email_to_check: email
+    });
+
+    if (error) {
+      console.error('检查邮箱错误:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('检查邮箱错误:', error);
+    throw error;
   }
 }

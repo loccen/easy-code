@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signUp, checkUsernameAvailable } from '@/lib/auth';
+import { signUp, checkUsernameAvailable, checkEmailAvailable } from '@/lib/auth';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function RegisterPage() {
@@ -17,6 +17,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   
   const router = useRouter();
   const { refreshUser } = useAuthStore();
@@ -24,10 +26,13 @@ export default function RegisterPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // 重置用户名检查状态
+
+    // 重置检查状态
     if (name === 'username') {
       setUsernameAvailable(null);
+    }
+    if (name === 'email') {
+      setEmailAvailable(null);
     }
   };
 
@@ -46,10 +51,43 @@ export default function RegisterPage() {
       } else {
         setError('');
       }
-    } catch {
+    } catch (err) {
+      console.error('检查用户名失败:', err);
       setError('检查用户名时出错');
+      setUsernameAvailable(null);
     } finally {
       setUsernameChecking(false);
+    }
+  };
+
+  const checkEmail = async () => {
+    if (!formData.email) {
+      setError('请输入邮箱地址');
+      return;
+    }
+
+    // 简单的邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('邮箱格式不正确');
+      return;
+    }
+
+    setEmailChecking(true);
+    try {
+      const available = await checkEmailAvailable(formData.email);
+      setEmailAvailable(available);
+      if (!available) {
+        setError('邮箱已被使用');
+      } else {
+        setError('');
+      }
+    } catch (err) {
+      console.error('检查邮箱失败:', err);
+      setError('检查邮箱时出错');
+      setEmailAvailable(null);
+    } finally {
+      setEmailChecking(false);
     }
   };
 
@@ -73,6 +111,12 @@ export default function RegisterPage() {
 
     if (usernameAvailable === false) {
       setError('请选择一个可用的用户名');
+      setLoading(false);
+      return;
+    }
+
+    if (emailAvailable === false) {
+      setError('请选择一个可用的邮箱');
       setLoading(false);
       return;
     }
@@ -115,17 +159,33 @@ export default function RegisterPage() {
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 邮箱地址
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={formData.email}
-                onChange={handleInputChange}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="请输入邮箱地址"
-              />
+              <div className="mt-1 flex rounded-md shadow-sm">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="请输入邮箱地址"
+                />
+                <button
+                  type="button"
+                  onClick={checkEmail}
+                  disabled={emailChecking || !formData.email}
+                  className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-500 text-sm disabled:opacity-50"
+                >
+                  {emailChecking ? '检查中...' : '检查'}
+                </button>
+              </div>
+              {emailAvailable === true && (
+                <p className="mt-1 text-sm text-green-600">✓ 邮箱可用</p>
+              )}
+              {emailAvailable === false && (
+                <p className="mt-1 text-sm text-red-600">✗ 邮箱已被使用</p>
+              )}
             </div>
 
             <div>
