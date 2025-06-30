@@ -286,11 +286,8 @@ function ProjectsPageContent() {
 
 // 项目卡片组件
 function ProjectCard({ project }: { project: Project }) {
-  const formatPrice = (price: number, currency: string = 'CNY') => {
-    if (currency === 'CNY') {
-      return `¥${price}`;
-    }
-    return `$${price}`;
+  const formatPrice = (price: number) => {
+    return `${price.toLocaleString()} 积分`;
   };
 
   return (
@@ -348,7 +345,7 @@ function ProjectCard({ project }: { project: Project }) {
             {/* 价格和统计 */}
             <div className="flex items-center justify-between">
               <div className="text-lg font-bold text-blue-600">
-                {formatPrice(project.price, project.currency)}
+                {formatPrice(project.price)}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <span>👁 {project.view_count || 0}</span>

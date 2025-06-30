@@ -125,12 +125,7 @@ function SearchPageContent() {
     setCurrentPage(1);
   };
 
-  // const formatPrice = (price: number, currency: string = 'CNY') => {
-  //   if (currency === 'CNY') {
-  //     return `¥${price}`;
-  //   }
-  //   return `$${price}`;
-  // };
+
 
   const totalPages = Math.ceil(total / itemsPerPage);
 
@@ -185,19 +180,19 @@ function SearchPageContent() {
                 {/* 价格范围 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    价格范围
+                    价格范围（积分）
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="number"
-                      placeholder="最低价"
+                      placeholder="最低积分"
                       value={minPrice}
                       onChange={(e) => setMinPrice(e.target.value)}
                       min="0"
                     />
                     <Input
                       type="number"
-                      placeholder="最高价"
+                      placeholder="最高积分"
                       value={maxPrice}
                       onChange={(e) => setMaxPrice(e.target.value)}
                       min="0"
@@ -408,11 +403,8 @@ function SearchPageContent() {
 
 // 项目卡片组件
 function ProjectCard({ project }: { project: Project }) {
-  const formatPrice = (price: number, currency: string = 'CNY') => {
-    if (currency === 'CNY') {
-      return `¥${price}`;
-    }
-    return `$${price}`;
+  const formatPrice = (price: number) => {
+    return `${price.toLocaleString()} 积分`;
   };
 
   return (
@@ -470,7 +462,7 @@ function ProjectCard({ project }: { project: Project }) {
             {/* 价格和统计 */}
             <div className="flex items-center justify-between">
               <div className="text-lg font-bold text-blue-600">
-                {formatPrice(project.price, project.currency)}
+                {formatPrice(project.price)}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <span>👁 {project.view_count || 0}</span>

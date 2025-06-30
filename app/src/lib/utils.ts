@@ -9,13 +9,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * 格式化价格
+ * 格式化价格（积分）
  */
-export function formatPrice(price: number, currency = 'CNY'): string {
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency',
-    currency,
-  }).format(price);
+export function formatPrice(price: number): string {
+  return `${price.toLocaleString()} 积分`;
 }
 
 /**

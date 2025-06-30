@@ -140,13 +140,8 @@ export default function SellerProjectsPage() {
     return colorMap[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const formatPrice = (price: number, currency: string = 'CNY') => {
-    const currencySymbols: Record<string, string> = {
-      CNY: '¥',
-      USD: '$',
-      EUR: '€',
-    };
-    return `${currencySymbols[currency] || currency} ${price.toFixed(2)}`;
+  const formatPrice = (price: number) => {
+    return `${price.toLocaleString()} 积分`;
   };
 
   const formatDate = (dateString: string) => {
@@ -251,7 +246,7 @@ export default function SellerProjectsPage() {
                     )}
                     
                     <div className="flex items-center space-x-6 text-sm text-gray-500 mb-4">
-                      <span>价格: {formatPrice(project.price, project.currency)}</span>
+                      <span>价格: {formatPrice(project.price)}</span>
                       {(project as Project & { category?: { name: string } }).category && (
                         <span>分类: {(project as Project & { category?: { name: string } }).category?.name}</span>
                       )}

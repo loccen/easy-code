@@ -25,7 +25,6 @@ export default function ProjectUploadPage() {
     description: '',
     category_id: '',
     price: '',
-    currency: 'CNY',
     tech_stack: [] as string[],
     demo_url: '',
     github_url: '',
@@ -154,7 +153,6 @@ export default function ProjectUploadPage() {
         description: formData.description.trim(),
         category_id: formData.category_id || null,
         price: parseFloat(formData.price),
-        currency: formData.currency,
         tech_stack: formData.tech_stack.length > 0 ? formData.tech_stack : null,
         demo_url: formData.demo_url.trim() || null,
         github_url: formData.github_url.trim() || null,
@@ -341,39 +339,24 @@ export default function ProjectUploadPage() {
             {/* 价格信息 */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">价格信息</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                    价格 *
-                  </label>
-                  <Input
-                    id="price"
-                    name="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">
-                    货币
-                  </label>
-                  <select
-                    id="currency"
-                    name="currency"
-                    value={formData.currency}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="CNY">人民币 (CNY)</option>
-                    <option value="USD">美元 (USD)</option>
-                    <option value="EUR">欧元 (EUR)</option>
-                  </select>
-                </div>
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+                  价格（积分）*
+                </label>
+                <Input
+                  id="price"
+                  name="price"
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  placeholder="请输入积分数量"
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  项目价格将以积分为单位，用户购买时将从积分余额中扣除
+                </p>
               </div>
             </div>
 

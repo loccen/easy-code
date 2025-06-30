@@ -203,11 +203,8 @@ export default function AdminProjectsPage() {
     return colorMap[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const formatPrice = (price: number, currency: string = 'CNY') => {
-    if (currency === 'CNY') {
-      return `¥${price}`;
-    }
-    return `$${price}`;
+  const formatPrice = (price: number) => {
+    return `${price.toLocaleString()} 积分`;
   };
 
   const formatDate = (dateString: string) => {
@@ -414,7 +411,7 @@ export default function AdminProjectsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {formatPrice(project.price, project.currency)}
+                        {formatPrice(project.price)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
