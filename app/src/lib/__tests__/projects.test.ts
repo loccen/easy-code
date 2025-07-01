@@ -16,10 +16,22 @@ vi.mock('../supabase', () => ({
 import {
   getPublishedProjects,
   getProjectById,
+  getSellerProjects,
   createProject,
+  updateProject,
+  deleteProject,
   updateProjectStatus,
   incrementProjectViews,
-  getPopularProjects
+  getPopularProjects,
+  getFeaturedProjects,
+  getLatestProjects,
+  searchProjects,
+  getAllProjectsForAdmin,
+  getProjectStatsForAdmin,
+  updateProjectStatusAsAdmin,
+  deleteProjectAsAdmin,
+  incrementProjectDownloads,
+  validateProjectData
 } from '../projects';
 
 describe('Projects API', () => {
@@ -311,6 +323,487 @@ describe('Projects API', () => {
       expect(mockQuery.order).toHaveBeenCalledWith('download_count', { ascending: false });
       expect(mockQuery.limit).toHaveBeenCalledWith(5);
       expect(result).toEqual(mockProjects);
+    });
+  });
+
+  describe('getSellerProjects', () => {
+    it('should fetch seller projects successfully', async () => {
+      const mockProjects = [
+        createMockProject(),
+        createMockProject({ id: 'project-456', title: 'Another Project' }),
+      ];
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockProjects)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      const result = await getSellerProjects('seller-123');
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(mockQuery.eq).toHaveBeenCalledWith('seller_id', 'seller-123');
+      expect(result).toEqual(mockProjects);
+    });
+
+    it('should handle database errors', async () => {
+      const mockError = new Error('Database error');
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await expect(getSellerProjects('seller-123')).rejects.toThrow('Database error');
+    });
+  });
+
+  describe('updateProject', () => {
+    it('should update project successfully', async () => {
+      const updateData = {
+        title: 'Updated Project',
+        description: 'Updated description',
+      };
+
+      const mockUpdatedProject = createMockProject({
+        ...updateData,
+        updated_at: new Date().toISOString(),
+      });
+
+      const mockQuery = {
+        update: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockUpdatedProject)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      const result = await updateProject('project-123', updateData);
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(mockQuery.update).toHaveBeenCalledWith({
+        ...updateData,
+        updated_at: expect.any(String),
+      });
+      expect(mockQuery.eq).toHaveBeenCalledWith('id', 'project-123');
+      expect(result).toEqual(mockUpdatedProject);
+    });
+
+    it('should handle update errors', async () => {
+      const mockError = new Error('Update failed');
+      const mockQuery = {
+        update: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await expect(updateProject('project-123', { title: 'New Title' })).rejects.toThrow('Update failed');
+    });
+  });
+
+  describe('deleteProject', () => {
+    it('should delete project successfully', async () => {
+      const mockQuery = {
+        delete: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await deleteProject('project-123');
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(mockQuery.delete).toHaveBeenCalled();
+      expect(mockQuery.eq).toHaveBeenCalledWith('id', 'project-123');
+    });
+
+    it('should handle deletion errors', async () => {
+      const mockError = new Error('Deletion failed');
+      const mockQuery = {
+        delete: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await expect(deleteProject('project-123')).rejects.toThrow('Deletion failed');
+    });
+  });
+
+  describe('getAllProjectsForAdmin', () => {
+    it('should fetch all projects for admin with filters', async () => {
+      const mockProjects = [createMockProject()];
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        ilike: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({
+          data: mockProjects,
+          error: null,
+          count: 1,
+        }),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      const result = await getAllProjectsForAdmin({
+        status: 'approved',
+        search: 'test',
+        limit: 10,
+        offset: 0,
+      });
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(result).toEqual({ projects: mockProjects, total: 1 });
+    });
+
+    it('should handle admin query errors', async () => {
+      const mockError = new Error('Admin query failed');
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        ilike: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
+      };
+      // 使最终调用返回 error
+      (mockSupabase.from as any).mockReturnValue({
+        ...mockQuery,
+        then: (resolve: any, reject: any) => Promise.resolve({ data: null, error: mockError, count: null }).then(resolve, reject),
+        catch: (reject: any) => Promise.resolve({ data: null, error: mockError, count: null }).catch(reject),
+        // 直接返回 error
+        async [Symbol.asyncIterator]() { return { next: async () => ({ done: true }) }; },
+        async range() { return { data: null, error: mockError, count: null }; },
+        async select() { return { data: null, error: mockError, count: null }; },
+        async eq() { return { data: null, error: mockError, count: null }; },
+        async or() { return { data: null, error: mockError, count: null }; },
+      });
+      await expect(getAllProjectsForAdmin()).rejects.toThrow('Admin query failed');
+    });
+  });
+
+  describe('getProjectStatsForAdmin', () => {
+    it('should fetch project statistics for admin', async () => {
+      const mockProjects = [
+        { status: 'approved' },
+        { status: 'approved' },
+        { status: 'pending_review' },
+        { status: 'draft' },
+      ];
+
+      const mockQuery = {
+        select: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockProjects)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      const result = await getProjectStatsForAdmin();
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(result.total).toBe(4);
+      expect(result.approved).toBe(2);
+      expect(result.pending_review).toBe(1);
+      expect(result.draft).toBe(1);
+      expect(result.rejected).toBe(0);
+    });
+
+    it('should handle stats query errors', async () => {
+      const mockError = new Error('Stats query failed');
+      const mockQuery = {
+        select: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await expect(getProjectStatsForAdmin()).rejects.toThrow('Stats query failed');
+    });
+  });
+
+  describe('updateProjectStatusAsAdmin', () => {
+    it('should update project status as admin with review comment', async () => {
+      const mockUpdatedProject = createMockProject({
+        status: 'approved',
+        review_comment: 'Looks good!',
+      });
+
+      const mockQuery = {
+        update: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockUpdatedProject)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      const result = await updateProjectStatusAsAdmin('project-123', 'approved', 'Looks good!');
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(mockQuery.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'approved',
+          review_comment: 'Looks good!',
+          updated_at: expect.any(String),
+          published_at: expect.any(String),
+        })
+      );
+      expect(result).toEqual(mockUpdatedProject);
+    });
+
+    it('should handle admin status update errors', async () => {
+      const mockError = new Error('Admin update failed');
+      const mockQuery = {
+        update: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await expect(updateProjectStatusAsAdmin('project-123', 'approved')).rejects.toThrow('Admin update failed');
+    });
+  });
+
+  describe('deleteProjectAsAdmin', () => {
+    it('should delete project as admin successfully', async () => {
+      const mockQuery = {
+        delete: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await deleteProjectAsAdmin('project-123');
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(mockQuery.delete).toHaveBeenCalled();
+      expect(mockQuery.eq).toHaveBeenCalledWith('id', 'project-123');
+    });
+
+    it('should handle admin deletion errors', async () => {
+      const mockError = new Error('Admin deletion failed');
+      const mockQuery = {
+        delete: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await expect(deleteProjectAsAdmin('project-123')).rejects.toThrow('Admin deletion failed');
+    });
+  });
+
+  describe('incrementProjectDownloads', () => {
+    it('should increment project downloads successfully', async () => {
+      (mockSupabase.rpc as any).mockResolvedValue(createMockSupabaseResponse(null));
+
+      await incrementProjectDownloads('project-123');
+
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('increment_project_downloads', {
+        project_id: 'project-123',
+      });
+    });
+
+    it('should handle download increment errors gracefully', async () => {
+      const mockError = new Error('Download increment failed');
+      (mockSupabase.rpc as any).mockResolvedValue(createMockSupabaseResponse(null, mockError));
+
+      // Should not throw error, just log it
+      await expect(incrementProjectDownloads('project-123')).resolves.not.toThrow();
+    });
+  });
+
+  describe('getFeaturedProjects', () => {
+    it('should fetch featured projects successfully', async () => {
+      const mockProjects = [createMockProject({ is_featured: true })];
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockProjects)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      const result = await getFeaturedProjects(5);
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(mockQuery.eq).toHaveBeenCalledWith('status', 'approved');
+      expect(mockQuery.limit).toHaveBeenCalledWith(5);
+      expect(result).toEqual(mockProjects);
+    });
+
+    it('should handle featured projects query errors', async () => {
+      const mockError = new Error('Featured query failed');
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await expect(getFeaturedProjects()).rejects.toThrow('Featured query failed');
+    });
+  });
+
+  describe('getLatestProjects', () => {
+    it('should fetch latest projects successfully', async () => {
+      const mockProjects = [createMockProject()];
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockProjects)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      const result = await getLatestProjects(5);
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('projects');
+      expect(mockQuery.eq).toHaveBeenCalledWith('status', 'approved');
+      expect(mockQuery.order).toHaveBeenCalledWith('published_at', { ascending: false });
+      expect(mockQuery.limit).toHaveBeenCalledWith(5);
+      expect(result).toEqual(mockProjects);
+    });
+
+    it('should handle latest projects query errors', async () => {
+      const mockError = new Error('Latest query failed');
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+      };
+
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+      await expect(getLatestProjects()).rejects.toThrow('Latest query failed');
+    });
+  });
+
+  describe('searchProjects', () => {
+    it('should search projects with query and filters', async () => {
+      const mockProjects = [createMockProject()];
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lte: vi.fn().mockReturnThis(),
+        overlaps: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: mockProjects, error: null, count: mockProjects.length }),
+      };
+      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      // 直接调用 searchProjects 并断言返回结构
+      const result = await searchProjects('test', { limit: 10 });
+      expect(result).toEqual({ projects: mockProjects, total: mockProjects.length });
+    });
+    it('should handle search errors', async () => {
+      const mockError = new Error('Search failed');
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lte: vi.fn().mockReturnThis(),
+        overlaps: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
+      };
+      (mockSupabase.from as any).mockReturnValue({
+        ...mockQuery,
+        async select() { return { data: null, error: mockError, count: null }; },
+        async range() { return { data: null, error: mockError, count: null }; },
+      });
+      await expect(searchProjects('test')).rejects.toThrow('Search failed');
+    });
+  });
+
+  describe('validateProjectData', () => {
+    it('should validate project data correctly', () => {
+      const validData = {
+        title: 'Valid Project',
+        description: 'Valid description',
+        price: 100,
+        demo_url: 'https://example.com',
+        github_url: 'https://github.com/user/repo',
+      };
+
+      const errors = validateProjectData(validData);
+      expect(errors).toEqual([]);
+    });
+
+    it('should return errors for invalid data', () => {
+      const invalidData = {
+        title: '',
+        description: '',
+        price: -10,
+      };
+
+      const errors = validateProjectData(invalidData);
+      expect(errors).toContain('项目标题不能为空');
+      expect(errors).toContain('项目描述不能为空');
+      expect(errors).toContain('价格不能为负数');
+    });
+
+    it('should validate URL formats', () => {
+      const dataWithInvalidUrls = {
+        title: 'Test',
+        description: 'Test',
+        price: 100,
+        demo_url: 'invalid-url',
+        github_url: 'not-a-url',
+        documentation_url: 'also-invalid',
+      };
+
+      const errors = validateProjectData(dataWithInvalidUrls);
+      expect(errors).toContain('演示地址格式不正确');
+      expect(errors).toContain('GitHub地址格式不正确');
+      expect(errors).toContain('文档地址格式不正确');
+    });
+
+    it('should handle missing title and description', () => {
+      const dataWithMissingFields = {
+        price: 100,
+      };
+
+      const errors = validateProjectData(dataWithMissingFields);
+      expect(errors).toContain('项目标题不能为空');
+      expect(errors).toContain('项目描述不能为空');
+    });
+
+    it('should handle whitespace-only title and description', () => {
+      const dataWithWhitespace = {
+        title: '   ',
+        description: '   ',
+        price: 100,
+      };
+
+      const errors = validateProjectData(dataWithWhitespace);
+      expect(errors).toContain('项目标题不能为空');
+      expect(errors).toContain('项目描述不能为空');
     });
   });
 });

@@ -413,16 +413,316 @@ jobs:
       - run: npm run test
 ```
 
-### 12. 常见问题和解决方案
+### 12. 测试开发规范
 
-#### 12.1 类型错误快速修复指南
+#### 12.1 TypeScript 测试最佳实践
+
+**规则**: 确保测试代码的类型安全和可维护性
+
+```typescript
+// ❌ 错误：使用 any 类型的 Mock
+let mockSupabase: any;
+
+// ✅ 正确：使用类型安全的 Mock 配置
+import { vi } from 'vitest';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+// 使用 ESLint 注释允许必要的 any 类型
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockSupabase = {
+  from: vi.fn(),
+  rpc: vi.fn(),
+  auth: {
+    signUp: vi.fn(),
+    signInWithPassword: vi.fn(),
+    signOut: vi.fn(),
+    getUser: vi.fn(),
+  },
+} as any as SupabaseClient;
+
+// ✅ 更好：定义具体的 Mock 类型
+interface MockSupabaseClient {
+  from: ReturnType<typeof vi.fn>;
+  rpc: ReturnType<typeof vi.fn>;
+  auth: {
+    signUp: ReturnType<typeof vi.fn>;
+    signInWithPassword: ReturnType<typeof vi.fn>;
+    signOut: ReturnType<typeof vi.fn>;
+    getUser: ReturnType<typeof vi.fn>;
+  };
+}
+```
+
+#### 12.2 Vitest 和 Mock 配置规范
+
+**规则**: 标准化的 Mock 配置模式
+
+```typescript
+// ✅ Supabase 查询链 Mock 配置
+const mockQuery = {
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  order: vi.fn().mockReturnThis(),
+  limit: vi.fn().mockReturnThis(),
+  range: vi.fn().mockResolvedValue({
+    data: mockData,
+    error: null,
+    count: mockData.length,
+  }),
+};
+
+// ✅ RPC 调用 Mock 配置
+(mockSupabase.rpc as any).mockResolvedValue({
+  data: mockResult,
+  error: null,
+});
+
+// ✅ 错误情况 Mock 配置
+mockQuery.range.mockResolvedValue({
+  data: null,
+  error: new Error('Database error'),
+  count: null,
+});
+```
+
+#### 12.3 测试用例编写标准
+
+**规则**: 遵循 AAA 模式（Arrange, Act, Assert）
+
+```typescript
+describe('getUserCredits', () => {
+  it('should fetch user credits successfully', async () => {
+    // Arrange - 准备测试数据和 Mock
+    const mockCredits = { balance: 1000, currency: 'CREDITS' };
+    const mockQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: mockCredits,
+        error: null,
+      }),
+    };
+    (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+    // Act - 执行被测试的函数
+    const result = await getUserCredits('user-123');
+
+    // Assert - 验证结果
+    expect(mockSupabase.from).toHaveBeenCalledWith('user_credits');
+    expect(mockQuery.eq).toHaveBeenCalledWith('user_id', 'user-123');
+    expect(result).toEqual(mockCredits);
+  });
+
+  it('should handle database errors', async () => {
+    // Arrange
+    const mockError = new Error('Database connection failed');
+    const mockQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: null,
+        error: mockError,
+      }),
+    };
+    (mockSupabase.from as any).mockReturnValue(mockQuery);
+
+    // Act & Assert
+    await expect(getUserCredits('user-123')).rejects.toThrow('Database connection failed');
+  });
+});
+```
+
+#### 12.4 测试数据管理规范
+
+**规则**: 创建可重用的测试数据工厂函数
+
+```typescript
+// ✅ 测试数据工厂函数
+function createMockUser(overrides: Partial<User> = {}): User {
+  return {
+    id: 'test-user-id',
+    email: 'test@example.com',
+    username: 'testuser',
+    role: 'buyer',
+    status: 'active',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function createMockProject(overrides: Partial<Project> = {}): Project {
+  return {
+    id: 'test-project-id',
+    title: 'Test Project',
+    description: 'Test project description',
+    price: 100,
+    currency: 'CREDITS',
+    seller_id: 'test-seller-id',
+    category_id: 'test-category-id',
+    status: 'approved',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+// ✅ Supabase 响应工厂函数
+function createMockSupabaseResponse<T>(
+  data: T | null,
+  error: Error | null = null
+) {
+  return { data, error };
+}
+```
+
+#### 12.5 Mock 状态管理规范
+
+**规则**: 确保测试间的隔离性
+
+```typescript
+describe('Projects API', () => {
+  // ✅ 在每个测试前重置 Mock 状态
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // ✅ 在测试套件结束后恢复原始实现
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
+});
+```
+
+#### 12.6 异步测试最佳实践
+
+**规则**: 正确处理异步操作和错误
+
+```typescript
+// ✅ 正确的异步测试
+it('should handle async operations', async () => {
+  const mockData = createMockProject();
+  mockSupabase.from.mockReturnValue({
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockData)),
+  });
+
+  const result = await getProjectById('project-123');
+  expect(result).toEqual(mockData);
+});
+
+// ✅ 正确的错误测试
+it('should handle errors correctly', async () => {
+  const mockError = new Error('Database error');
+  mockSupabase.from.mockReturnValue({
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
+  });
+
+  await expect(getProjectById('project-123')).rejects.toThrow('Database error');
+});
+```
+
+### 13. 常见测试问题和解决方案
+
+#### 13.1 Mock 配置错误诊断
+
+**问题**: Mock 链式调用配置不正确
+```typescript
+// ❌ 错误：Mock 链不完整
+const mockQuery = {
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  // 缺少最终的解析方法
+};
+
+// ✅ 解决方案：完整的 Mock 链
+const mockQuery = {
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  order: vi.fn().mockReturnThis(),
+  limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockData)),
+};
+```
+
+**问题**: RPC 调用 Mock 配置错误
+```typescript
+// ❌ 错误：类型不匹配
+mockSupabase.rpc.mockResolvedValue(mockData);
+
+// ✅ 解决方案：正确的类型断言
+(mockSupabase.rpc as any).mockResolvedValue(createMockSupabaseResponse(mockData));
+```
+
+#### 13.2 函数实现与测试不匹配处理
+
+**问题**: 函数返回格式与测试期望不符
+```typescript
+// 如果函数实际返回 { projects: [], total: 0 }
+// 但测试期望直接返回数组
+
+// ✅ 解决方案：调整测试期望
+expect(result.projects).toEqual(mockProjects);
+expect(result.total).toBe(mockProjects.length);
+```
+
+**问题**: 错误处理方式不一致
+```typescript
+// 如果函数不抛出错误，只记录日志
+// ✅ 解决方案：调整测试断言
+await expect(functionThatLogsErrors('id')).resolves.not.toThrow();
+```
+
+#### 13.3 测试覆盖率优化策略
+
+**规则**: 系统性提升测试覆盖率
+
+1. **优先覆盖核心业务逻辑**
+   - 用户认证和授权
+   - 项目管理 CRUD 操作
+   - 积分系统交易
+   - 订单处理流程
+
+2. **测试用例类型分布**
+   - 正常流程测试：60%
+   - 错误处理测试：25%
+   - 边界条件测试：15%
+
+3. **覆盖率目标**
+   - 语句覆盖率：≥ 80%
+   - 分支覆盖率：≥ 70%
+   - 函数覆盖率：≥ 85%
+
+### 14. 测试开发检查清单
+
+#### 14.1 编写测试前
+- [ ] 确认函数的实际实现和返回格式
+- [ ] 准备完整的测试数据工厂函数
+- [ ] 了解函数的错误处理方式
+- [ ] 确定需要 Mock 的外部依赖
+
+#### 14.2 编写测试中
+- [ ] 使用 AAA 模式组织测试代码
+- [ ] 为每个测试用例添加描述性的名称
+- [ ] 正确配置 Mock 对象和返回值
+- [ ] 包含正常流程、错误处理、边界条件测试
+
+#### 14.3 测试完成后
+- [ ] 运行 `npm run test` 确保所有测试通过
+- [ ] 检查测试覆盖率报告
+- [ ] 验证 Mock 配置的正确性
+- [ ] 确保测试间的隔离性
+
+### 15. 常见问题和解决方案
+
+#### 15.1 类型错误快速修复指南
 1. **`any` 类型错误**: 替换为 `unknown` 或具体类型
 2. **未使用变量错误**: 添加下划线前缀或移除未使用的代码
 3. **导入路径错误**: 检查文件结构，使用正确的相对路径
 4. **泛型类型不匹配**: 添加适当的类型断言
 5. **接口字段缺失**: 补充完整的接口定义
 
-#### 12.2 性能优化建议
+#### 15.2 性能优化建议
 1. **避免不必要的类型断言**: 优先使用类型守卫
 2. **合理使用泛型约束**: 避免过度复杂的泛型定义
 3. **统一错误处理**: 减少重复的错误处理代码
@@ -467,9 +767,9 @@ easy-code/
 - 一键部署支持
 - 环境配置管理
 
-## 13. 代码质量保证流程
+## 16. 代码质量保证流程
 
-### 13.1 强制性检查流程
+### 16.1 强制性检查流程
 每次提交代码前必须通过以下检查：
 
 ```bash
@@ -482,34 +782,40 @@ npm run build
 # 3. 单元测试检查
 npm run test
 
-# 4. 类型检查（可选）
+# 4. 测试覆盖率检查
+npm run test -- --coverage
+
+# 5. 类型检查（可选）
 npm run type-check
 ```
 
-### 13.2 代码审查要点
+### 16.2 代码审查要点
 1. **类型安全**: 检查是否有 `any` 类型使用
 2. **错误处理**: 确保统一的错误处理模式
-3. **测试覆盖**: 新功能必须包含相应测试
+3. **测试覆盖**: 新功能必须包含相应测试，覆盖率≥80%
 4. **文档更新**: API 变更需要更新相关文档
 5. **性能影响**: 评估代码变更对性能的影响
+6. **测试质量**: 检查测试用例的完整性和有效性
 
-### 13.3 持续改进机制
+### 16.3 持续改进机制
 1. **定期代码质量审查**: 每月进行代码质量分析
 2. **规范更新**: 根据实际问题更新开发规范
 3. **工具升级**: 及时更新 ESLint、TypeScript 等工具
 4. **团队培训**: 定期进行代码质量培训
+5. **测试策略优化**: 根据覆盖率报告优化测试策略
 
-## 14. 总结
+## 17. 总结
 
-本开发规范基于实际项目中遇到的 TypeScript 编译错误和 ESLint 代码质量问题制定，涵盖了：
+本开发规范基于实际项目中遇到的 TypeScript 编译错误、ESLint 代码质量问题和测试开发挑战制定，涵盖了：
 
 - **类型安全**: 禁用 `any` 类型，使用具体类型定义
 - **代码质量**: 处理未使用变量，管理导入，替换已弃用 API
 - **架构一致性**: 统一的 Supabase 集成和 API 设计模式
-- **测试规范**: 完整的类型定义和 mock 对象处理
+- **测试规范**: 完整的测试开发流程和 Mock 配置标准
+- **测试质量**: 系统性的测试覆盖率提升策略
 - **自动化检查**: 完整的 CI/CD 流程和检查清单
 
-遵循这些规范可以显著提高代码质量，减少编译错误，提升开发效率。
+遵循这些规范可以显著提高代码质量，减少编译错误，提升开发效率，确保测试覆盖率达到生产级别要求。
 
 ## 注意事项
 - 所有回复使用中文
