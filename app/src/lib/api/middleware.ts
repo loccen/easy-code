@@ -4,15 +4,26 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient } from '@/lib/supabase';
 import { ResponseWrapper, ErrorCode, BusinessError } from './response';
 import { z } from 'zod';
 
 // API处理器类型
 export type ApiHandler = (
   req: NextRequest,
-  context?: { params?: any }
-) => Promise<any>;
+  context?: {
+    params?: Record<string, string>;
+    user?: AuthenticatedUser;
+    body?: unknown;
+    query?: URLSearchParams | unknown;
+    pagination?: {
+      page: number;
+      limit: number;
+      offset: number;
+    };
+    requestContext?: RequestContext;
+  }
+) => Promise<Response>;
 
 // 认证用户信息
 export interface AuthenticatedUser {
@@ -25,7 +36,7 @@ export interface AuthenticatedUser {
 // 请求上下文
 export interface RequestContext {
   user?: AuthenticatedUser;
-  params?: any;
+  params?: Record<string, string>;
   query?: URLSearchParams;
 }
 
@@ -34,7 +45,7 @@ export interface RequestContext {
  * 提供统一的错误处理和响应格式化
  */
 export function withApiHandler(handler: ApiHandler) {
-  return async (req: NextRequest, context?: { params?: any }) => {
+  return async (req: NextRequest, context?: { params?: Record<string, string> }) => {
     try {
       const result = await handler(req, context);
       
@@ -45,8 +56,9 @@ export function withApiHandler(handler: ApiHandler) {
 
       // 如果返回的是ApiResponse格式，直接返回
       if (result && typeof result === 'object' && 'success' in result) {
+        const apiResponse = result as { success: boolean; error?: { code?: string } };
         return NextResponse.json(result, {
-          status: result.success ? 200 : getErrorStatusCode(result.error?.code),
+          status: apiResponse.success ? 200 : getErrorStatusCode(apiResponse.error?.code),
         });
       }
 
@@ -63,7 +75,7 @@ export function withApiHandler(handler: ApiHandler) {
  * 需要认证的API包装器
  */
 export function withAuth(handler: ApiHandler) {
-  return withApiHandler(async (req: NextRequest, context?: { params?: any }) => {
+  return withApiHandler(async (req: NextRequest, context?: { params?: Record<string, string> }) => {
     const user = await getCurrentUser(req);
     if (!user) {
       return NextResponse.json(
@@ -89,7 +101,7 @@ export function withRole(roles: string | string[]) {
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   
   return (handler: ApiHandler) => {
-    return withAuth(async (req: NextRequest, context?: any) => {
+    return withAuth(async (req: NextRequest, context?: { params?: Record<string, string>; user?: AuthenticatedUser }) => {
       const user = context?.user as AuthenticatedUser;
       
       if (!allowedRoles.includes(user.role)) {
@@ -109,7 +121,7 @@ export function withRole(roles: string | string[]) {
  */
 export function withValidation<T>(schema: z.ZodSchema<T>) {
   return (handler: ApiHandler) => {
-    return withApiHandler(async (req: NextRequest, context?: any) => {
+    return withApiHandler(async (req: NextRequest, context?: { params?: Record<string, string> }) => {
       try {
         const body = await req.json();
         const validatedData = schema.parse(body);
@@ -137,7 +149,7 @@ export function withValidation<T>(schema: z.ZodSchema<T>) {
  */
 export function withQueryValidation<T>(schema: z.ZodSchema<T>) {
   return (handler: ApiHandler) => {
-    return withApiHandler(async (req: NextRequest, context?: any) => {
+    return withApiHandler(async (req: NextRequest, context?: { params?: Record<string, string> }) => {
       try {
         const url = new URL(req.url);
         const queryParams = Object.fromEntries(url.searchParams.entries());
@@ -165,7 +177,7 @@ export function withQueryValidation<T>(schema: z.ZodSchema<T>) {
  * 分页参数处理包装器
  */
 export function withPagination(handler: ApiHandler) {
-  return withApiHandler(async (req: NextRequest, context?: any) => {
+  return withApiHandler(async (req: NextRequest, context?: { params?: Record<string, string> }) => {
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
@@ -188,9 +200,10 @@ export function withPagination(handler: ApiHandler) {
 /**
  * 获取当前用户
  */
-async function getCurrentUser(req: NextRequest): Promise<AuthenticatedUser | null> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function getCurrentUser(_req: NextRequest): Promise<AuthenticatedUser | null> {
   try {
-    const supabase = createServerClient();
+    const supabase = createServerSupabaseClient();
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
@@ -223,7 +236,7 @@ async function getCurrentUser(req: NextRequest): Promise<AuthenticatedUser | nul
 /**
  * 处理API错误
  */
-function handleApiError(error: any): NextResponse {
+function handleApiError(error: unknown): NextResponse {
   if (error instanceof BusinessError) {
     return NextResponse.json(
       ResponseWrapper.error(error.code, error.message, error.details, error.field),

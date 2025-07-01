@@ -48,117 +48,385 @@ type: "always_apply"
 - 提交代码前，必须运行build和lint命令，解决所有编译错误和告警
 - 择机进行 Git 提交，避免积累过多改动，请务必记住，当前的改动未完成测试前，不允许提交。
 
-### 6. TypeScript 和编译错误处理
+### 6. TypeScript 类型安全规范
 
-#### 6.1 类型定义最佳实践
-**问题**: 使用 `any` 类型导致 ESLint 错误和类型安全问题
-**解决方案**:
-- 始终为数据结构定义具体的 TypeScript 接口
-- 避免使用 `any` 类型，使用具体类型或联合类型
-- 为 API 响应、组件 props、状态变量定义明确类型
+#### 6.1 禁用 any 类型规范
+**规则**: 严格禁止使用 `any` 类型，使用具体类型或 `unknown` 类型
+**ESLint规则**: `@typescript-eslint/no-explicit-any`
 
 ```typescript
 // ❌ 错误做法
-const [searchResults, setSearchResults] = useState<any[]>([]);
-const [selectedUser, setSelectedUser] = useState<any>(null);
+let mockSupabase: any;
+function handleError(error: any): Response { }
+const apiResponse: ApiResponse<any> = {};
 
 // ✅ 正确做法
-interface UserSearchResult {
-  id: string;
-  email: string;
-  username: string;
-  role: UserRole;
-  status: UserStatus;
-  created_at: string;
-}
+let mockSupabase: ReturnType<typeof vi.mocked>;
+function handleError(error: unknown): Response { }
+const apiResponse: ApiResponse<User> = {};
 
-const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-const [selectedUser, setSelectedUser] = useState<UserWithCredits | null>(null);
+// ✅ 对于复杂场景，使用 unknown 并进行类型守卫
+function processData(data: unknown) {
+  if (typeof data === 'object' && data !== null && 'id' in data) {
+    // 安全地处理数据
+  }
+}
 ```
 
-#### 6.2 Supabase 查询类型处理
-**问题**: Supabase 关联查询返回的数据结构与 TypeScript 接口定义不匹配
-**解决方案**:
-- 理解 Supabase 关联查询的返回格式（通常是数组）
-- 创建数据转换函数来匹配 TypeScript 接口
-- 在 API 函数中进行类型转换
+**修复方法**:
+1. 为测试 mock 对象使用 `// eslint-disable-next-line @typescript-eslint/no-explicit-any`
+2. 为错误处理使用 `unknown` 类型并添加类型检查
+3. 为 API 响应定义具体的泛型类型
+
+#### 6.2 泛型类型约束规范
+**规则**: 正确使用泛型约束，避免类型不匹配错误
 
 ```typescript
-// ❌ 问题：期望单个对象，但 Supabase 返回数组
-interface AdminCreditOperation {
-  users: { username: string; email: string; } | null;
+// ❌ 错误：泛型类型不匹配
+export abstract class BaseService<T = any> {
+  async findById(id: string): Promise<ApiResponse<T>> {
+    return ResponseWrapper.fromSupabase(response); // 类型不匹配
+  }
 }
 
-// ✅ 解决方案：数据转换
-const { data, error } = await supabase
-  .from('credit_transactions')
-  .select('*, users!inner(username, email)');
-
-const transformedData = (data || []).map(item => ({
-  ...item,
-  users: Array.isArray(item.users) && item.users.length > 0 ? item.users[0] : null
-}));
-```
-
-#### 6.3 UI 组件类型安全
-**问题**: 使用不存在的组件属性值导致编译错误
-**解决方案**:
-- 使用组件前检查其 TypeScript 定义
-- 不要假设组件支持某些属性值
-- 建立项目内 UI 组件的使用文档
-
-```typescript
-// ❌ 错误：假设 Button 支持 'default' variant
-<Button variant="default">按钮</Button>
-
-// ✅ 正确：使用实际支持的 variant
-<Button variant="primary">按钮</Button>
-```
-
-#### 6.4 null 安全处理
-**问题**: 可能为 null 的对象访问导致编译错误
-**解决方案**:
-- 使用可选链操作符 (`?.`) 和空值合并操作符 (`??`)
-- 在必要时使用非空断言操作符 (`!`)，但要确保逻辑正确
-- 在函数开始处进行参数验证
-
-```typescript
-// ❌ 错误：直接访问可能为 null 的对象
-const credits = selectedUser.credits.available_credits;
-
-// ✅ 正确：使用可选链和空值合并
-const credits = selectedUser?.credits?.available_credits ?? 0;
-
-// ✅ 或者在验证后使用非空断言
-if (!selectedUser) {
-  setError('请先选择用户');
-  return;
+// ✅ 正确：使用类型断言确保类型安全
+export abstract class BaseService<T = unknown> {
+  async findById(id: string): Promise<ApiResponse<T>> {
+    return ResponseWrapper.fromSupabase(response) as ApiResponse<T>;
+  }
 }
-const credits = selectedUser!.credits?.available_credits ?? 0;
 ```
 
-#### 6.5 开发流程检查清单
+#### 6.3 类型断言最佳实践
+**规则**: 谨慎使用类型断言，优先使用类型守卫
+
+```typescript
+// ❌ 避免：直接类型断言
+const user = data as User;
+
+// ✅ 推荐：使用类型守卫
+function isUser(data: unknown): data is User {
+  return typeof data === 'object' && data !== null && 'id' in data;
+}
+
+if (isUser(data)) {
+  // data 现在是 User 类型
+}
+
+// ✅ 可接受：在确定类型安全的情况下使用断言
+const result = ResponseWrapper.fromSupabase(response) as ApiResponse<T>;
+```
+
+#### 6.4 接口定义规范
+**规则**: 为所有数据结构定义完整的 TypeScript 接口
+
+```typescript
+// ❌ 错误：缺少必需字段
+const projectData = {
+  title: 'New Project',
+  description: 'Project description',
+  price: 100,
+  status: 'draft' as const,
+};
+
+// ✅ 正确：完整的接口定义
+interface CreateProjectData {
+  title: string;
+  description: string;
+  price: number;
+  currency: string;
+  seller_id: string;
+  category_id: string;
+  tech_stack: string[];
+  is_dockerized: boolean;
+  docker_verified: boolean;
+  download_count: number;
+  view_count: number;
+  rating_average: number;
+  rating_count: number;
+  featured: boolean;
+  status: ProjectStatus;
+}
+```
+
+### 7. ESLint 代码质量规范
+
+#### 7.1 未使用变量处理规范
+**规则**: 正确处理未使用的变量和参数
+**ESLint规则**: `@typescript-eslint/no-unused-vars`
+
+```typescript
+// ❌ 错误：未使用的导入和参数
+import { updateProject, getSellerProjects } from '../projects';
+function getCurrentUser(req: NextRequest): Promise<User | null> { }
+
+// ✅ 正确：移除未使用的导入
+import { getPublishedProjects } from '../projects';
+
+// ✅ 正确：为故意未使用的参数添加下划线前缀
+function getCurrentUser(_req: NextRequest): Promise<User | null> { }
+
+// ✅ 正确：为抽象方法使用 ESLint 注释
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+protected async validateCreate(_data: Partial<T>): Promise<ApiResponse<void>> {
+  return ResponseWrapper.success(undefined);
+}
+```
+
+#### 7.2 导入管理规范
+**规则**: 保持导入的整洁和必要性
+
+```typescript
+// ❌ 错误：导入未使用的模块
+import { createClient } from '@/lib/supabase/client';
+import { SupabaseClient, PostgrestQueryBuilder } from '@supabase/supabase-js';
+
+// ✅ 正确：只导入需要的模块
+import { supabase } from '@/lib/supabase';
+import { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
+```
+
+#### 7.3 已弃用 API 替换规范
+**规则**: 及时替换已弃用的 API
+
+```typescript
+// ❌ 错误：使用已弃用的 substr 方法
+return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+// ✅ 正确：使用 substring 方法
+return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+```
+
+### 8. Supabase 集成规范
+
+#### 8.1 客户端导入规范
+**规则**: 使用统一的 Supabase 客户端导入方式
+
+```typescript
+// ❌ 错误：错误的导入路径
+import { createClient } from '@/lib/supabase/client';
+import { createServerClient } from '@/lib/supabase/server';
+
+// ✅ 正确：统一的导入方式
+import { supabase, createServerSupabaseClient } from '@/lib/supabase';
+```
+
+#### 8.2 错误处理模式规范
+**规则**: 统一的 Supabase 错误处理模式
+
+```typescript
+// ❌ 错误：不一致的错误处理
+if (response.error) {
+  return ResponseWrapper.fromSupabase(response);
+}
+
+// ✅ 正确：统一的错误处理
+if (response.error) {
+  return ResponseWrapper.error(ErrorCode.DATABASE_ERROR, response.error.message);
+}
+```
+
+#### 8.3 类型安全的查询规范
+**规则**: 确保 Supabase 查询的类型安全
+
+```typescript
+// ❌ 错误：缺少类型信息
+const response = await supabase.from('projects').select('*');
+return ResponseWrapper.fromSupabase(response);
+
+// ✅ 正确：明确的类型断言
+const response = await supabase.from('projects').select('*');
+return ResponseWrapper.fromSupabase(response) as ApiResponse<Project[]>;
+```
+
+### 9. 测试数据规范
+
+#### 9.1 完整类型定义规范
+**规则**: 测试数据必须符合完整的类型定义
+
+```typescript
+// ❌ 错误：缺少必需字段的测试数据
+const projectData = {
+  title: 'New Project',
+  description: 'Project description',
+  price: 100,
+  status: 'draft' as const,
+};
+
+// ✅ 正确：完整的测试数据
+const projectData = {
+  title: 'New Project',
+  description: 'Project description',
+  price: 100,
+  currency: 'CREDITS',
+  seller_id: 'seller-id',
+  category_id: 'category-id',
+  tech_stack: ['React', 'TypeScript'],
+  is_dockerized: false,
+  docker_verified: false,
+  download_count: 0,
+  view_count: 0,
+  rating_average: 0,
+  rating_count: 0,
+  featured: false,
+  status: 'draft' as const,
+};
+```
+
+#### 9.2 Mock 对象处理规范
+**规则**: 为复杂的 mock 对象使用适当的类型注解
+
+```typescript
+// ❌ 错误：无类型的 mock 对象
+let mockSupabase: any;
+
+// ✅ 正确：带有 ESLint 注释的 mock 对象
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mockSupabase: any;
+
+// ✅ 更好：使用具体的 mock 类型
+let mockSupabase: ReturnType<typeof vi.mocked>;
+```
+
+### 10. API 设计规范
+
+#### 10.1 统一响应格式规范
+**规则**: 所有 API 响应必须使用统一的 ResponseWrapper
+
+```typescript
+// ❌ 错误：直接返回数据
+return { success: true, data: projects };
+
+// ✅ 正确：使用 ResponseWrapper
+return ResponseWrapper.success(projects);
+
+// ✅ 正确：错误响应
+return ResponseWrapper.error(ErrorCode.VALIDATION_ERROR, '数据验证失败');
+```
+
+#### 10.2 中间件使用模式规范
+**规则**: 正确组合和使用 API 中间件
+
+```typescript
+// ❌ 错误：类型不匹配的中间件参数
+export const POST = withAuth(async (req: NextRequest, context?: any) => {
+  // 处理逻辑
+});
+
+// ✅ 正确：明确的类型定义
+export const POST = withAuth(async (req: NextRequest, context?: {
+  params?: Record<string, string>;
+  user?: AuthenticatedUser
+}) => {
+  // 处理逻辑
+});
+```
+
+#### 10.3 错误处理统一化规范
+**规则**: 使用统一的错误处理模式
+
+```typescript
+// ❌ 错误：不一致的错误处理
+function handleApiError(error: any): NextResponse {
+  if (error instanceof BusinessError) {
+    return NextResponse.json(ResponseWrapper.error(error.code, error.message));
+  }
+  return NextResponse.json({ error: 'Unknown error' });
+}
+
+// ✅ 正确：统一的错误处理
+function handleApiError(error: unknown): NextResponse {
+  if (error instanceof BusinessError) {
+    return NextResponse.json(
+      ResponseWrapper.error(error.code, error.message, error.details, error.field)
+    );
+  }
+
+  if (error instanceof Error) {
+    return NextResponse.json(
+      ResponseWrapper.error(ErrorCode.INTERNAL_ERROR, error.message)
+    );
+  }
+
+  return NextResponse.json(
+    ResponseWrapper.error(ErrorCode.INTERNAL_ERROR, '未知错误')
+  );
+}
+```
+
+### 11. 自动化检查和验证
+
+#### 11.1 必需的 npm scripts
+确保 package.json 包含以下脚本：
+
+```json
+{
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  }
+}
+```
+
+#### 11.2 开发流程检查清单
 **编码前**:
-- [ ] 定义所需的 TypeScript 接口
-- [ ] 检查使用的 UI 组件类型定义
-- [ ] 了解 Supabase 查询返回的数据结构
+- [ ] 确认所需的 TypeScript 接口已定义
+- [ ] 检查依赖包是否已安装
+- [ ] 了解相关 API 的类型定义
 
 **编码中**:
 - [ ] 避免使用 `any` 类型
-- [ ] 为状态变量和函数参数添加类型注解
-- [ ] 处理可能为 null/undefined 的值
+- [ ] 为所有变量和函数添加适当的类型注解
+- [ ] 使用统一的错误处理模式
+- [ ] 遵循导入和命名规范
 
 **编码后**:
 - [ ] 运行 `npm run lint` 检查代码质量
 - [ ] 运行 `npm run build` 检查 TypeScript 编译
-- [ ] 解决所有类型错误和警告
+- [ ] 运行 `npm run test` 执行单元测试
+- [ ] 解决所有错误和警告
 - [ ] 进行功能测试验证
 
-#### 6.6 常见错误模式和预防
-1. **数据转换错误**: 在 API 层进行数据格式转换，确保返回类型与接口匹配
-2. **组件属性错误**: 建立组件使用文档，记录支持的属性值
-3. **null 引用错误**: 建立统一的错误处理模式，在函数入口进行参数验证
-4. **类型推断失败**: 显式添加类型注解，不依赖 TypeScript 的类型推断
+#### 11.3 CI/CD 配置建议
+在 `.github/workflows/ci.yml` 中添加：
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test
+```
+
+### 12. 常见问题和解决方案
+
+#### 12.1 类型错误快速修复指南
+1. **`any` 类型错误**: 替换为 `unknown` 或具体类型
+2. **未使用变量错误**: 添加下划线前缀或移除未使用的代码
+3. **导入路径错误**: 检查文件结构，使用正确的相对路径
+4. **泛型类型不匹配**: 添加适当的类型断言
+5. **接口字段缺失**: 补充完整的接口定义
+
+#### 12.2 性能优化建议
+1. **避免不必要的类型断言**: 优先使用类型守卫
+2. **合理使用泛型约束**: 避免过度复杂的泛型定义
+3. **统一错误处理**: 减少重复的错误处理代码
+4. **优化导入**: 使用具体导入而非全量导入
 
 ## 目录结构
 ```
@@ -169,7 +437,11 @@ easy-code/
 │   ├── prototypes/          # 原型设计
 │   └── deployment/          # 部署文档
 ├── src/                     # 源代码
-├── tests/                   # 测试文件
+│   ├── lib/                 # 核心库
+│   │   ├── api/            # API 相关
+│   │   ├── services/       # 业务服务
+│   │   └── __tests__/      # 单元测试
+├── tests/                   # 集成测试
 ├── scripts/                 # 脚本文件
 └── deployment/              # 部署配置
 ```
@@ -195,9 +467,56 @@ easy-code/
 - 一键部署支持
 - 环境配置管理
 
+## 13. 代码质量保证流程
+
+### 13.1 强制性检查流程
+每次提交代码前必须通过以下检查：
+
+```bash
+# 1. 代码格式和质量检查
+npm run lint
+
+# 2. TypeScript 编译检查
+npm run build
+
+# 3. 单元测试检查
+npm run test
+
+# 4. 类型检查（可选）
+npm run type-check
+```
+
+### 13.2 代码审查要点
+1. **类型安全**: 检查是否有 `any` 类型使用
+2. **错误处理**: 确保统一的错误处理模式
+3. **测试覆盖**: 新功能必须包含相应测试
+4. **文档更新**: API 变更需要更新相关文档
+5. **性能影响**: 评估代码变更对性能的影响
+
+### 13.3 持续改进机制
+1. **定期代码质量审查**: 每月进行代码质量分析
+2. **规范更新**: 根据实际问题更新开发规范
+3. **工具升级**: 及时更新 ESLint、TypeScript 等工具
+4. **团队培训**: 定期进行代码质量培训
+
+## 14. 总结
+
+本开发规范基于实际项目中遇到的 TypeScript 编译错误和 ESLint 代码质量问题制定，涵盖了：
+
+- **类型安全**: 禁用 `any` 类型，使用具体类型定义
+- **代码质量**: 处理未使用变量，管理导入，替换已弃用 API
+- **架构一致性**: 统一的 Supabase 集成和 API 设计模式
+- **测试规范**: 完整的类型定义和 mock 对象处理
+- **自动化检查**: 完整的 CI/CD 流程和检查清单
+
+遵循这些规范可以显著提高代码质量，减少编译错误，提升开发效率。
+
 ## 注意事项
 - 所有回复使用中文
 - 遇到反复失败的命令时停下来让用户手动执行
 - 善用可用工具
 - 保持频繁的 Git 提交
 - 项目未初始化时先进行仓库初始化
+- **新增**: 每次编码后必须运行 `npm run lint` 和 `npm run build`
+- **新增**: 所有类型错误和警告必须在提交前解决
+- **新增**: 新功能开发必须包含相应的单元测试

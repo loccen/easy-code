@@ -24,6 +24,7 @@ import {
 } from '../credits';
 
 describe('Credits API', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockSupabase: any;
 
   beforeEach(async () => {

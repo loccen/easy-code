@@ -5,7 +5,7 @@
 
 import { BaseService } from './base.service';
 import { ApiResponse, ResponseWrapper, ErrorCode, QueryParams } from '@/lib/api/response';
-import { Project, ProjectStatus } from '@/types/project';
+import { Project, ProjectStatus } from '@/types';
 
 export interface ProjectQueryParams extends QueryParams {
   category_id?: string;
@@ -138,7 +138,6 @@ export class ProjectService extends BaseService<Project> {
   ): Promise<ApiResponse<Project>> {
     const updateData: UpdateProjectData = {
       status,
-      updated_at: new Date().toISOString(),
     };
 
     if (status === 'rejected' && rejectionReason) {
@@ -226,6 +225,7 @@ export class ProjectService extends BaseService<Project> {
   /**
    * 应用搜索条件
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected applySearch(query: any, search: string): any {
     return query.or(`title.ilike.%${search}%,description.ilike.%${search}%,tech_stack.cs.{${search}}`);
   }
@@ -233,7 +233,8 @@ export class ProjectService extends BaseService<Project> {
   /**
    * 应用过滤条件
    */
-  protected applyFilters(query: any, filters: Record<string, any>): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected applyFilters(query: any, filters: Record<string, unknown>): any {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         switch (key) {
@@ -296,7 +297,7 @@ export class ProjectService extends BaseService<Project> {
   /**
    * 更新前数据验证
    */
-  protected async validateUpdate(id: string, data: Partial<Project>): Promise<ApiResponse<void>> {
+  protected async validateUpdate(_id: string, data: Partial<Project>): Promise<ApiResponse<void>> {
     const updateData = data as UpdateProjectData;
 
     // 如果更新分类，验证分类是否存在

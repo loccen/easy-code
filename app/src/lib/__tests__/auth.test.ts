@@ -25,7 +25,9 @@ vi.mock('../credits', () => ({
 import { signUp, signIn, signOut, getCurrentUser } from '../auth';
 
 describe('Auth API', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockSupabase: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockGrantRegistrationBonus: any;
 
   beforeEach(async () => {

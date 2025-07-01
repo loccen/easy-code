@@ -3,16 +3,16 @@
  * 提供统一的数据访问和业务逻辑处理
  */
 
-import { createClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { ResponseWrapper, ApiResponse, BusinessError, ErrorCode, QueryParams } from '@/lib/api/response';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-export abstract class BaseService<T = any> {
+export abstract class BaseService<T = unknown> {
   protected supabase: SupabaseClient;
   protected tableName: string;
 
   constructor(tableName: string) {
-    this.supabase = createClient();
+    this.supabase = supabase;
     this.tableName = tableName;
   }
 
@@ -28,7 +28,7 @@ export abstract class BaseService<T = any> {
         .single();
 
       const response = await query;
-      return ResponseWrapper.fromSupabase(response);
+      return ResponseWrapper.fromSupabase(response) as ApiResponse<T>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -75,11 +75,15 @@ export abstract class BaseService<T = any> {
         const pagination = {
           page: params.page,
           limit: params.limit,
+          total: response.count || 0,
+          totalPages: Math.ceil((response.count || 0) / params.limit),
+          hasNext: (params.page * params.limit) < (response.count || 0),
+          hasPrev: params.page > 1,
         };
-        return ResponseWrapper.fromSupabase(response, { pagination });
+        return ResponseWrapper.fromSupabase(response, { pagination }) as ApiResponse<T[]>;
       }
 
-      return ResponseWrapper.fromSupabase(response);
+      return ResponseWrapper.fromSupabase(response) as ApiResponse<T[]>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -93,7 +97,7 @@ export abstract class BaseService<T = any> {
       // 数据验证
       const validationResult = await this.validateCreate(data);
       if (!validationResult.success) {
-        return validationResult;
+        return validationResult as ApiResponse<T>;
       }
 
       // 业务逻辑处理
@@ -105,11 +109,11 @@ export abstract class BaseService<T = any> {
         .select(select || '*')
         .single();
 
-      const result = ResponseWrapper.fromSupabase(response);
-      
+      const result = ResponseWrapper.fromSupabase(response) as ApiResponse<T>;
+
       // 创建后处理
       if (result.success && result.data) {
-        await this.afterCreate(result.data);
+        await this.afterCreate(result.data as T);
       }
 
       return result;
@@ -126,7 +130,7 @@ export abstract class BaseService<T = any> {
       // 数据验证
       const validationResult = await this.validateUpdate(id, data);
       if (!validationResult.success) {
-        return validationResult;
+        return validationResult as ApiResponse<T>;
       }
 
       // 业务逻辑处理
@@ -139,11 +143,11 @@ export abstract class BaseService<T = any> {
         .select(select || '*')
         .single();
 
-      const result = ResponseWrapper.fromSupabase(response);
-      
+      const result = ResponseWrapper.fromSupabase(response) as ApiResponse<T>;
+
       // 更新后处理
       if (result.success && result.data) {
-        await this.afterUpdate(result.data);
+        await this.afterUpdate(result.data as T);
       }
 
       return result;
@@ -172,13 +176,13 @@ export abstract class BaseService<T = any> {
         .eq('id', id);
 
       if (response.error) {
-        return ResponseWrapper.fromSupabase(response);
+        return ResponseWrapper.fromSupabase(response) as ApiResponse<void>;
       }
 
       // 删除后处理
       await this.afterDelete(id);
 
-      return ResponseWrapper.success(undefined);
+      return ResponseWrapper.success(undefined) as ApiResponse<void>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -187,7 +191,7 @@ export abstract class BaseService<T = any> {
   /**
    * 统计记录数量
    */
-  async count(filters?: Record<string, any>): Promise<ApiResponse<number>> {
+  async count(filters?: Record<string, unknown>): Promise<ApiResponse<number>> {
     try {
       let query = this.supabase
         .from(this.tableName)
@@ -200,10 +204,10 @@ export abstract class BaseService<T = any> {
       const response = await query;
       
       if (response.error) {
-        return ResponseWrapper.fromSupabase(response);
+        return ResponseWrapper.error(ErrorCode.DATABASE_ERROR, response.error.message) as ApiResponse<number>;
       }
 
-      return ResponseWrapper.success(response.count || 0);
+      return ResponseWrapper.success(response.count || 0) as ApiResponse<number>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -214,21 +218,24 @@ export abstract class BaseService<T = any> {
   /**
    * 创建前数据验证
    */
-  protected async validateCreate(data: Partial<T>): Promise<ApiResponse<void>> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async validateCreate(_data: Partial<T>): Promise<ApiResponse<void>> {
     return ResponseWrapper.success(undefined);
   }
 
   /**
    * 更新前数据验证
    */
-  protected async validateUpdate(id: string, data: Partial<T>): Promise<ApiResponse<void>> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async validateUpdate(_id: string, _data: Partial<T>): Promise<ApiResponse<void>> {
     return ResponseWrapper.success(undefined);
   }
 
   /**
    * 删除前验证
    */
-  protected async validateDelete(id: string): Promise<ApiResponse<void>> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async validateDelete(_id: string): Promise<ApiResponse<void>> {
     return ResponseWrapper.success(undefined);
   }
 
@@ -242,47 +249,53 @@ export abstract class BaseService<T = any> {
   /**
    * 更新前数据处理
    */
-  protected async beforeUpdate(id: string, data: Partial<T>): Promise<Partial<T>> {
+  protected async beforeUpdate(_id: string, data: Partial<T>): Promise<Partial<T>> {
     return data;
   }
 
   /**
    * 删除前处理
    */
-  protected async beforeDelete(id: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async beforeDelete(_id: string): Promise<void> {
     // 默认不做任何处理
   }
 
   /**
    * 创建后处理
    */
-  protected async afterCreate(data: T): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async afterCreate(_data: T): Promise<void> {
     // 默认不做任何处理
   }
 
   /**
    * 更新后处理
    */
-  protected async afterUpdate(data: T): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async afterUpdate(_data: T): Promise<void> {
     // 默认不做任何处理
   }
 
   /**
    * 删除后处理
    */
-  protected async afterDelete(id: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async afterDelete(_id: string): Promise<void> {
     // 默认不做任何处理
   }
 
   /**
    * 应用搜索条件 - 子类需要实现
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected abstract applySearch(query: any, search: string): any;
 
   /**
    * 应用过滤条件 - 子类可以重写
    */
-  protected applyFilters(query: any, filters: Record<string, any>): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected applyFilters(query: any, filters: Record<string, unknown>): any {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         query = query.eq(key, value);
@@ -294,7 +307,7 @@ export abstract class BaseService<T = any> {
   /**
    * 错误处理
    */
-  protected handleError(error: any): ApiResponse<never> {
+  protected handleError(error: unknown): ApiResponse<never> {
     if (error instanceof BusinessError) {
       return ResponseWrapper.error(error.code, error.message, error.details, error.field);
     }
@@ -313,7 +326,7 @@ export abstract class BaseService<T = any> {
   protected throwBusinessError(
     code: ErrorCode | string,
     message: string,
-    details?: any,
+    details?: unknown,
     field?: string
   ): never {
     throw new BusinessError(code, message, details, field);

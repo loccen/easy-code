@@ -6,7 +6,7 @@
 import { PostgrestError } from '@supabase/supabase-js';
 
 // 统一响应格式接口
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: ApiError;
@@ -17,7 +17,7 @@ export interface ApiResponse<T = any> {
 export interface ApiError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
   field?: string;
 }
 
@@ -86,7 +86,7 @@ export class ResponseWrapper {
   static error(
     code: ErrorCode | string,
     message: string,
-    details?: any,
+    details?: unknown,
     field?: string
   ): ApiResponse<never> {
     return {
@@ -134,7 +134,7 @@ export class ResponseWrapper {
     },
     options?: {
       pagination?: Omit<PaginationMeta, 'total'>;
-      transform?: (data: T) => any;
+      transform?: (data: T) => unknown;
     }
   ): ApiResponse<T> {
     const { data, error, count } = supabaseResponse;
@@ -157,19 +157,20 @@ export class ResponseWrapper {
 
     // 处理分页响应
     if (options?.pagination && count !== null) {
+      const totalCount = count || 0;
       const pagination: PaginationMeta = {
         ...options.pagination,
-        total: count,
-        totalPages: Math.ceil(count / options.pagination.limit),
-        hasNext: (options.pagination.page * options.pagination.limit) < count,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / options.pagination.limit),
+        hasNext: (options.pagination.page * options.pagination.limit) < totalCount,
         hasPrev: options.pagination.page > 1,
       };
       
-      return this.paginated(Array.isArray(transformedData) ? transformedData : [transformedData], pagination);
+      return this.paginated(Array.isArray(transformedData) ? transformedData : [transformedData], pagination) as ApiResponse<T>;
     }
 
     // 普通成功响应
-    return this.success(transformedData, count !== null ? { total: count } : undefined);
+    return this.success(transformedData, count !== null ? { total: count || 0 } : undefined) as ApiResponse<T>;
   }
 
   /**
@@ -224,7 +225,7 @@ export class ResponseWrapper {
    * 生成请求ID
    */
   private static generateRequestId(): string {
-    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 }
 
@@ -235,7 +236,7 @@ export class BusinessError extends Error {
   constructor(
     public code: ErrorCode | string,
     message: string,
-    public details?: any,
+    public details?: unknown,
     public field?: string
   ) {
     super(message);
@@ -270,5 +271,5 @@ export interface SortParams {
  */
 export interface QueryParams extends PaginationParams, SortParams {
   search?: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
 }

@@ -17,16 +17,13 @@ import {
   getPublishedProjects,
   getProjectById,
   createProject,
-  updateProject,
   updateProjectStatus,
-  getSellerProjects,
   incrementProjectViews,
-  incrementProjectDownloads,
-  getPopularProjects,
-  getLatestProjects
+  getPopularProjects
 } from '../projects';
 
 describe('Projects API', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockSupabase: any;
 
   beforeEach(async () => {
@@ -144,11 +141,17 @@ describe('Projects API', () => {
         title: 'New Project',
         description: 'Project description',
         price: 100,
+        currency: 'CREDITS',
         seller_id: 'seller-id',
         category_id: 'category-id',
         tech_stack: ['React', 'TypeScript'],
-        features: ['Feature 1'],
-        requirements: ['Node.js'],
+        is_dockerized: false,
+        docker_verified: false,
+        download_count: 0,
+        view_count: 0,
+        rating_average: 0,
+        rating_count: 0,
+        featured: false,
         status: 'draft' as const,
       };
 
@@ -173,11 +176,17 @@ describe('Projects API', () => {
         title: 'New Project',
         description: 'Project description',
         price: 100,
+        currency: 'CREDITS',
         seller_id: 'seller-id',
         category_id: 'category-id',
         tech_stack: ['React'],
-        features: ['Feature 1'],
-        requirements: ['Node.js'],
+        is_dockerized: false,
+        docker_verified: false,
+        download_count: 0,
+        view_count: 0,
+        rating_average: 0,
+        rating_count: 0,
+        featured: false,
         status: 'draft' as const,
       };
 

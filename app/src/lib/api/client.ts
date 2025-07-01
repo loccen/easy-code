@@ -3,9 +3,9 @@
  * 提供统一的数据访问接口，支持直接Supabase调用和API Routes调用
  */
 
-import { createClient } from '@/lib/supabase/client';
-import { ApiResponse, ResponseWrapper, ErrorCode } from './response';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { ApiResponse, ResponseWrapper, ErrorCode, PaginationMeta } from './response';
+import { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
 
 // API调用配置
 interface ApiConfig {
@@ -29,7 +29,7 @@ export class ApiClient {
   private defaultConfig: ApiConfig;
 
   constructor(config: ApiConfig = {}) {
-    this.supabase = createClient();
+    this.supabase = supabase;
     this.baseUrl = '/api';
     this.defaultConfig = {
       useApiRoutes: false,
@@ -45,12 +45,12 @@ export class ApiClient {
   async callSupabase<T>(
     operation: (client: SupabaseClient) => Promise<{
       data: T | null;
-      error: any;
+      error: PostgrestError | null;
       count?: number | null;
     }>,
     options?: {
-      transform?: (data: T) => any;
-      pagination?: any;
+      transform?: (data: T) => unknown;
+      pagination?: Omit<PaginationMeta, 'total'>;
     }
   ): Promise<ApiResponse<T>> {
     try {
@@ -73,7 +73,7 @@ export class ApiClient {
     endpoint: string,
     options: RequestOptions & {
       method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-      body?: any;
+      body?: unknown;
       params?: Record<string, string>;
     } = {}
   ): Promise<ApiResponse<T>> {
@@ -131,10 +131,10 @@ export class ApiClient {
 
       const data = await response.json();
       return data as ApiResponse<T>;
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearTimeout(timeoutId);
-      
-      if (error.name === 'AbortError') {
+
+      if (error instanceof Error && error.name === 'AbortError') {
         return ResponseWrapper.error(
           ErrorCode.NETWORK_ERROR,
           '请求超时',
@@ -157,19 +157,19 @@ export class ApiClient {
     operation: {
       supabase?: (client: SupabaseClient) => Promise<{
         data: T | null;
-        error: any;
+        error: PostgrestError | null;
         count?: number | null;
       }>;
       api?: {
         endpoint: string;
         method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-        body?: any;
+        body?: unknown;
         params?: Record<string, string>;
       };
     },
     options: RequestOptions & {
-      transform?: (data: T) => any;
-      pagination?: any;
+      transform?: (data: T) => unknown;
+      pagination?: Omit<PaginationMeta, 'total'>;
     } = {}
   ): Promise<ApiResponse<T>> {
     const useApiRoutes = options.useApiRoutes ?? this.defaultConfig.useApiRoutes;
@@ -200,33 +200,33 @@ export class ApiClient {
     options: RequestInit,
     retries: number
   ): Promise<Response> {
-    let lastError: Error;
+    let lastError: unknown;
 
     for (let i = 0; i <= retries; i++) {
       try {
         const response = await fetch(url, options);
-        
+
         // 如果是网络错误或5xx错误，进行重试
         if (response.status >= 500 && i < retries) {
           await this.delay(Math.pow(2, i) * 1000); // 指数退避
           continue;
         }
-        
+
         return response;
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
-        
+
         // 如果是最后一次重试，抛出错误
         if (i === retries) {
           throw error;
         }
-        
+
         // 等待后重试
         await this.delay(Math.pow(2, i) * 1000);
       }
     }
 
-    throw lastError!;
+    throw lastError;
   }
 
   /**
@@ -261,7 +261,7 @@ export class ApiClient {
         (payload) => {
           // 包装实时数据为统一格式
           callback({
-            eventType: payload.eventType as any,
+            eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
             new: payload.new as T,
             old: payload.old as T,
           });
