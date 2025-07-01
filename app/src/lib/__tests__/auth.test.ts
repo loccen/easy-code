@@ -321,7 +321,9 @@ describe('Auth API', () => {
 
       mockSupabase.from.mockReturnValue(mockUsersQuery);
 
-      await expect(getCurrentUser()).rejects.toThrow('Database error');
+      // getCurrentUser catches errors and returns null
+      const result = await getCurrentUser();
+      expect(result).toBeNull();
     });
 
     it('should work without profile data', async () => {

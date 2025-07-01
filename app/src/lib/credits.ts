@@ -471,3 +471,121 @@ export function getTransactionTypeColor(type: CreditTransactionType): string {
     return 'text-gray-600';
   }
 }
+
+// ==================== 测试需要的额外函数 ====================
+
+/**
+ * 获取积分历史记录（分页）
+ */
+export async function getCreditHistory(
+  userId: string,
+  options: {
+    page: number;
+    limit: number;
+    transactionType?: CreditTransactionType;
+  }
+): Promise<{
+  transactions: CreditTransaction[];
+  total: number;
+  page: number;
+  limit: number;
+}> {
+  try {
+    const { page, limit, transactionType } = options;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('credit_transactions')
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (transactionType) {
+      query = query.eq('transaction_type', transactionType);
+    }
+
+    const { data, error, count } = await query.range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    return {
+      transactions: data || [],
+      total: count || 0,
+      page,
+      limit
+    };
+  } catch (error) {
+    console.error('获取积分历史失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取积分设置
+ */
+export async function getCreditSettings(): Promise<{
+  registration_bonus: number;
+  upload_bonus: number;
+  docker_bonus_multiplier: number;
+  review_bonus: number;
+  demo_site_cost_per_hour: number;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('credit_settings')
+      .select('*')
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    // 如果没有设置记录，返回默认值
+    if (!data) {
+      return {
+        registration_bonus: 100,
+        upload_bonus: 50,
+        docker_bonus_multiplier: 2,
+        review_bonus: 10,
+        demo_site_cost_per_hour: 5,
+      };
+    }
+
+    return data;
+  } catch (error) {
+    console.error('获取积分设置失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 更新积分设置
+ */
+export async function updateCreditSettings(settings: {
+  registration_bonus?: number;
+  upload_bonus?: number;
+  docker_bonus_multiplier?: number;
+  review_bonus?: number;
+  demo_site_cost_per_hour?: number;
+}): Promise<{
+  registration_bonus: number;
+  upload_bonus: number;
+  docker_bonus_multiplier: number;
+  review_bonus: number;
+  demo_site_cost_per_hour: number;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('credit_settings')
+      .upsert(settings)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error('更新积分设置失败:', error);
+    throw error;
+  }
+}
