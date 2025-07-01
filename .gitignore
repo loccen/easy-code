@@ -115,3 +115,4 @@ temp/
 
 # Deployment
 deployment-config.local.yml
+app/coverage-summary.json
