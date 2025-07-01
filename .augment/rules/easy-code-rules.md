@@ -1,3 +1,7 @@
+---
+type: "always_apply"
+---
+
 # 易码网 (Easy Code) 项目开发指导
 
 ## 项目概述
