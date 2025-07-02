@@ -23,7 +23,7 @@ vi.mock('../supabase', () => ({
 const { supabase: mockSupabase } = await import('../supabase');
 
 // Helper function to create mock Supabase response
-function createMockSupabaseResponse(data: any, error: any = null) {
+function createMockSupabaseResponse<T>(data: T, error: Error | null = null) {
   return { data, error };
 }
 

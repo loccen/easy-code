@@ -6,9 +6,7 @@ import {
   getOrderById,
   getUserPurchaseHistory,
   getSellerSalesStats,
-  checkUserPurchased,
-  recordFileDownload,
-  getOrderDownloads
+  checkUserPurchased
 } from '../orders';
 
 // Mock Supabase
@@ -25,8 +23,17 @@ vi.mock('../supabase', () => ({
 // Get the mocked supabase instance
 const { supabase: mockSupabase } = await import('../supabase');
 
+// Type for mocked Supabase instance
+type MockSupabase = {
+  rpc: ReturnType<typeof vi.fn>;
+  from: ReturnType<typeof vi.fn>;
+  auth: {
+    getUser: ReturnType<typeof vi.fn>;
+  };
+};
+
 // Helper function to create mock Supabase response
-function createMockSupabaseResponse(data: any, error: any = null) {
+function createMockSupabaseResponse<T>(data: T, error: Error | null = null) {
   return { data, error };
 }
 
@@ -157,7 +164,7 @@ describe('Orders API', () => {
       ];
 
       // Mock RPC call for purchase history
-      (mockSupabase.rpc as any).mockResolvedValueOnce(createMockSupabaseResponse(mockPurchases));
+      (mockSupabase as MockSupabase).rpc.mockResolvedValueOnce(createMockSupabaseResponse(mockPurchases));
 
       // Mock count query
       const mockCountQuery = {
@@ -172,7 +179,7 @@ describe('Orders API', () => {
         })
       });
 
-      (mockSupabase.from as any).mockReturnValue(mockCountQuery);
+      (mockSupabase as MockSupabase).from.mockReturnValue(mockCountQuery);
 
       const result = await getUserPurchaseHistory('buyer-123', 10, 0);
 
@@ -196,7 +203,7 @@ describe('Orders API', () => {
         single: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockOrder)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      (mockSupabase as MockSupabase).from.mockReturnValue(mockQuery);
 
       const result = await getOrderById('order-123');
 
@@ -212,7 +219,7 @@ describe('Orders API', () => {
         single: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, { code: 'PGRST116' })),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      (mockSupabase as MockSupabase).from.mockReturnValue(mockQuery);
 
       const result = await getOrderById('non-existent');
 
@@ -225,33 +232,36 @@ describe('Orders API', () => {
       const mockQuery = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue(createMockSupabaseResponse({ id: 'order-123' })),
+        limit: vi.fn().mockResolvedValue(createMockSupabaseResponse([{ id: 'order-123' }])),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      (mockSupabase as MockSupabase).from.mockReturnValue(mockQuery);
 
       const result = await checkUserPurchased('buyer-123', 'project-123');
 
       expect(mockSupabase.from).toHaveBeenCalledWith('orders');
       expect(mockQuery.eq).toHaveBeenCalledWith('buyer_id', 'buyer-123');
       expect(mockQuery.eq).toHaveBeenCalledWith('project_id', 'project-123');
-      expect(result).toBe(false); // 修正：实际函数逻辑
+      expect(mockQuery.eq).toHaveBeenCalledWith('status', 'completed');
+      expect(result).toBe(true); // 修正：找到已完成订单应返回true
     });
 
     it('should return false when user has not purchased', async () => {
       const mockQuery = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, { code: 'PGRST116' })),
+        limit: vi.fn().mockResolvedValue(createMockSupabaseResponse([])), // 返回空数组表示未找到
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      (mockSupabase as MockSupabase).from.mockReturnValue(mockQuery);
 
       const result = await checkUserPurchased('buyer-123', 'project-123');
 
-      expect(result).toBe(false);
+      expect(mockSupabase.from).toHaveBeenCalledWith('orders');
+      expect(mockQuery.eq).toHaveBeenCalledWith('buyer_id', 'buyer-123');
+      expect(mockQuery.eq).toHaveBeenCalledWith('project_id', 'project-123');
+      expect(mockQuery.eq).toHaveBeenCalledWith('status', 'completed');
+      expect(result).toBe(false); // 未找到订单应返回false
     });
   });
 
@@ -270,7 +280,7 @@ describe('Orders API', () => {
         single: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockStats)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      (mockSupabase as MockSupabase).from.mockReturnValue(mockQuery);
 
       const result = await getSellerSalesStats('seller-123');
 
@@ -287,7 +297,7 @@ describe('Orders API', () => {
         single: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      (mockSupabase as MockSupabase).from.mockReturnValue(mockQuery);
 
       await expect(getSellerSalesStats('seller-123')).rejects.toThrow('Stats fetch failed');
     });

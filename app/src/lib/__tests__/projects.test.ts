@@ -34,14 +34,33 @@ import {
   validateProjectData
 } from '../projects';
 
+// Type for mocked Supabase instance
+type MockSupabase = {
+  rpc: ReturnType<typeof vi.fn>;
+  from: ReturnType<typeof vi.fn>;
+  auth?: {
+    getUser: ReturnType<typeof vi.fn>;
+  };
+};
+
+// Type for Supabase error
+type SupabaseError = {
+  code?: string;
+  message?: string;
+};
+
+// Helper function to create mock Supabase response
+function createMockSupabaseResponse<T>(data: T, error: Error | SupabaseError | null = null) {
+  return { data, error };
+}
+
 describe('Projects API', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockSupabase: any;
+  let mockSupabase: MockSupabase;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     // Get fresh mock reference
-    mockSupabase = (await import('../supabase')).supabase;
+    mockSupabase = (await import('../supabase')).supabase as unknown as MockSupabase;
   });
 
   describe('getPublishedProjects', () => {
@@ -72,8 +91,8 @@ describe('Projects API', () => {
       mockQuery.range.mockReturnThis();
 
       // Make the query object itself awaitable
-      (mockQuery as any).then = queryPromise.then.bind(queryPromise);
-      (mockQuery as any).catch = queryPromise.catch.bind(queryPromise);
+      (mockQuery as unknown as Promise<unknown>).then = queryPromise.then.bind(queryPromise);
+      (mockQuery as unknown as Promise<unknown>).catch = queryPromise.catch.bind(queryPromise);
 
       mockSupabase.from.mockReturnValue(mockQuery);
 
@@ -98,7 +117,7 @@ describe('Projects API', () => {
         eq: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
-        range: vi.fn().mockResolvedValue(createMockSupabaseResponse([], null, 0)),
+        range: vi.fn().mockResolvedValue(createMockSupabaseResponse([])),
       };
 
       mockSupabase.from.mockReturnValue(mockQuery);
@@ -116,7 +135,7 @@ describe('Projects API', () => {
         or: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
-        range: vi.fn().mockResolvedValue(createMockSupabaseResponse([], null, 0)),
+        range: vi.fn().mockResolvedValue(createMockSupabaseResponse([])),
       };
 
       mockSupabase.from.mockReturnValue(mockQuery);
@@ -339,7 +358,7 @@ describe('Projects API', () => {
         order: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockProjects)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       const result = await getSellerProjects('seller-123');
 
@@ -356,7 +375,7 @@ describe('Projects API', () => {
         order: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await expect(getSellerProjects('seller-123')).rejects.toThrow('Database error');
     });
@@ -381,7 +400,7 @@ describe('Projects API', () => {
         single: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockUpdatedProject)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       const result = await updateProject('project-123', updateData);
 
@@ -403,7 +422,7 @@ describe('Projects API', () => {
         single: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await expect(updateProject('project-123', { title: 'New Title' })).rejects.toThrow('Update failed');
     });
@@ -416,7 +435,7 @@ describe('Projects API', () => {
         eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await deleteProject('project-123');
 
@@ -432,7 +451,7 @@ describe('Projects API', () => {
         eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await expect(deleteProject('project-123')).rejects.toThrow('Deletion failed');
     });
@@ -455,7 +474,7 @@ describe('Projects API', () => {
         }),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       const result = await getAllProjectsForAdmin({
         status: 'approved',
@@ -470,26 +489,23 @@ describe('Projects API', () => {
 
     it('should handle admin query errors', async () => {
       const mockError = new Error('Admin query failed');
-      const mockQuery = {
+
+      // 创建一个会在await时抛出错误的查询链Mock
+      const mockQueryChain = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         ilike: vi.fn().mockReturnThis(),
         or: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
+        // 模拟最终的await调用返回错误
+        then: vi.fn((resolve) => {
+          resolve({ data: null, error: mockError, count: null });
+          return Promise.resolve({ data: null, error: mockError, count: null });
+        }),
       };
-      // 使最终调用返回 error
-      (mockSupabase.from as any).mockReturnValue({
-        ...mockQuery,
-        then: (resolve: any, reject: any) => Promise.resolve({ data: null, error: mockError, count: null }).then(resolve, reject),
-        catch: (reject: any) => Promise.resolve({ data: null, error: mockError, count: null }).catch(reject),
-        // 直接返回 error
-        async [Symbol.asyncIterator]() { return { next: async () => ({ done: true }) }; },
-        async range() { return { data: null, error: mockError, count: null }; },
-        async select() { return { data: null, error: mockError, count: null }; },
-        async eq() { return { data: null, error: mockError, count: null }; },
-        async or() { return { data: null, error: mockError, count: null }; },
-      });
+
+      mockSupabase.from.mockReturnValue(mockQueryChain);
       await expect(getAllProjectsForAdmin()).rejects.toThrow('Admin query failed');
     });
   });
@@ -507,7 +523,7 @@ describe('Projects API', () => {
         select: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockProjects)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       const result = await getProjectStatsForAdmin();
 
@@ -525,7 +541,7 @@ describe('Projects API', () => {
         select: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await expect(getProjectStatsForAdmin()).rejects.toThrow('Stats query failed');
     });
@@ -545,7 +561,7 @@ describe('Projects API', () => {
         single: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockUpdatedProject)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       const result = await updateProjectStatusAsAdmin('project-123', 'approved', 'Looks good!');
 
@@ -570,7 +586,7 @@ describe('Projects API', () => {
         single: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await expect(updateProjectStatusAsAdmin('project-123', 'approved')).rejects.toThrow('Admin update failed');
     });
@@ -583,7 +599,7 @@ describe('Projects API', () => {
         eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await deleteProjectAsAdmin('project-123');
 
@@ -599,7 +615,7 @@ describe('Projects API', () => {
         eq: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await expect(deleteProjectAsAdmin('project-123')).rejects.toThrow('Admin deletion failed');
     });
@@ -607,7 +623,7 @@ describe('Projects API', () => {
 
   describe('incrementProjectDownloads', () => {
     it('should increment project downloads successfully', async () => {
-      (mockSupabase.rpc as any).mockResolvedValue(createMockSupabaseResponse(null));
+      mockSupabase.rpc.mockResolvedValue(createMockSupabaseResponse(null));
 
       await incrementProjectDownloads('project-123');
 
@@ -618,7 +634,7 @@ describe('Projects API', () => {
 
     it('should handle download increment errors gracefully', async () => {
       const mockError = new Error('Download increment failed');
-      (mockSupabase.rpc as any).mockResolvedValue(createMockSupabaseResponse(null, mockError));
+      mockSupabase.rpc.mockResolvedValue(createMockSupabaseResponse(null, mockError));
 
       // Should not throw error, just log it
       await expect(incrementProjectDownloads('project-123')).resolves.not.toThrow();
@@ -637,7 +653,7 @@ describe('Projects API', () => {
         limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockProjects)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       const result = await getFeaturedProjects(5);
 
@@ -657,7 +673,7 @@ describe('Projects API', () => {
         limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await expect(getFeaturedProjects()).rejects.toThrow('Featured query failed');
     });
@@ -674,7 +690,7 @@ describe('Projects API', () => {
         limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(mockProjects)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       const result = await getLatestProjects(5);
 
@@ -694,7 +710,7 @@ describe('Projects API', () => {
         limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(null, mockError)),
       };
 
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
+      mockSupabase.from.mockReturnValue(mockQuery);
 
       await expect(getLatestProjects()).rejects.toThrow('Latest query failed');
     });
@@ -703,25 +719,9 @@ describe('Projects API', () => {
   describe('searchProjects', () => {
     it('should search projects with query and filters', async () => {
       const mockProjects = [createMockProject()];
-      const mockQuery = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        gte: vi.fn().mockReturnThis(),
-        lte: vi.fn().mockReturnThis(),
-        overlaps: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        range: vi.fn().mockResolvedValue({ data: mockProjects, error: null, count: mockProjects.length }),
-      };
-      (mockSupabase.from as any).mockReturnValue(mockQuery);
-      // 直接调用 searchProjects 并断言返回结构
-      const result = await searchProjects('test', { limit: 10 });
-      expect(result).toEqual({ projects: mockProjects, total: mockProjects.length });
-    });
-    it('should handle search errors', async () => {
-      const mockError = new Error('Search failed');
-      const mockQuery = {
+
+      // 创建一个完整的查询链Mock，最终在await时返回结果
+      const mockQueryChain = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         or: vi.fn().mockReturnThis(),
@@ -731,12 +731,41 @@ describe('Projects API', () => {
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
+        // 模拟最终的await调用
+        then: vi.fn((resolve) => {
+          resolve({ data: mockProjects, error: null, count: mockProjects.length });
+          return Promise.resolve({ data: mockProjects, error: null, count: mockProjects.length });
+        }),
       };
-      (mockSupabase.from as any).mockReturnValue({
-        ...mockQuery,
-        async select() { return { data: null, error: mockError, count: null }; },
-        async range() { return { data: null, error: mockError, count: null }; },
-      });
+
+      mockSupabase.from.mockReturnValue(mockQueryChain);
+
+      const result = await searchProjects('test', { limit: 10 });
+      expect(result).toEqual({ projects: mockProjects, total: mockProjects.length });
+    });
+
+    it('should handle search errors', async () => {
+      const mockError = new Error('Search failed');
+
+      // 创建一个会抛出错误的查询链Mock
+      const mockQueryChain = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lte: vi.fn().mockReturnThis(),
+        overlaps: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
+        // 模拟最终的await调用返回错误
+        then: vi.fn((resolve) => {
+          resolve({ data: null, error: mockError, count: null });
+          return Promise.resolve({ data: null, error: mockError, count: null });
+        }),
+      };
+
+      mockSupabase.from.mockReturnValue(mockQueryChain);
       await expect(searchProjects('test')).rejects.toThrow('Search failed');
     });
   });

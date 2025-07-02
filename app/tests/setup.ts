@@ -4,6 +4,24 @@
 
 import { vi } from 'vitest';
 
+// 在测试期间静默预期的错误日志
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  const message = args.join(' ');
+  // 过滤掉测试中的预期错误日志
+  if (
+    message.includes('失败:') ||
+    message.includes('错误:') ||
+    message.includes('获取') ||
+    message.includes('创建') ||
+    message.includes('更新') ||
+    message.includes('删除')
+  ) {
+    return; // 不输出这些预期的错误日志
+  }
+  originalConsoleError(...args);
+};
+
 // Mock环境变量
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';

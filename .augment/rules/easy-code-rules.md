@@ -804,7 +804,347 @@ npm run type-check
 4. **团队培训**: 定期进行代码质量培训
 5. **测试策略优化**: 根据覆盖率报告优化测试策略
 
-## 17. 总结
+## 17. 单元测试规范
+
+### 17.1 测试用例编写原则
+
+#### 17.1.1 AAA模式（Arrange-Act-Assert）
+**规则**: 所有测试用例必须遵循AAA模式，确保测试结构清晰
+
+```typescript
+// ✅ 正确：遵循AAA模式
+it('should handle insufficient credits', async () => {
+  // Arrange - 准备测试数据
+  const userId = 'user-123';
+  const amount = 1000;
+  const mockCredits = { available_credits: 500 };
+  mockUserCredits(userId, mockCredits);
+
+  // Act - 执行被测试的操作
+  const result = spendUserCredits(userId, amount);
+
+  // Assert - 验证结果
+  await expect(result).rejects.toThrow('积分不足');
+});
+
+// ❌ 错误：混乱的测试结构
+it('should handle credits', async () => {
+  const result = await spendUserCredits('user-123', 1000);
+  mockUserCredits('user-123', { available_credits: 500 });
+  expect(result).rejects.toThrow();
+});
+```
+
+#### 17.1.2 测试行为而非实现
+**规则**: 专注于验证业务行为和结果，而不是实现细节
+
+```typescript
+// ❌ 错误：测试实现细节
+it('should call database correctly', async () => {
+  await getUserCredits('user-123');
+
+  expect(mockSupabase.from).toHaveBeenCalledWith('user_credits');
+  expect(mockQuery.select).toHaveBeenCalledWith('*');
+  expect(mockQuery.eq).toHaveBeenCalledWith('user_id', 'user-123');
+});
+
+// ✅ 正确：测试业务行为
+it('should return user credits when user exists', async () => {
+  const mockCredits = { available_credits: 1000, total_credits: 1500 };
+  mockUserCreditsResponse(mockCredits);
+
+  const result = await getUserCredits('user-123');
+
+  expect(result.available_credits).toBe(1000);
+  expect(result.total_credits).toBe(1500);
+});
+```
+
+#### 17.1.3 描述性测试名称
+**规则**: 测试名称应该清楚描述业务场景，而不是技术实现
+
+```typescript
+// ❌ 错误：技术性描述
+it('should call RPC function')
+it('should return data from database')
+it('should handle errors')
+
+// ✅ 正确：业务场景描述
+it('should prevent duplicate purchases of the same project')
+it('should return user credit balance for valid user')
+it('should reject purchase when user has insufficient credits')
+```
+
+### 17.2 Mock使用指南
+
+#### 17.2.1 简化Mock配置原则
+**规则**: Mock配置应该简单直接，避免过度复杂的配置
+
+```typescript
+// ❌ 错误：过度复杂的Mock配置
+const queryPromise = Promise.resolve({ data: mockData, error: null });
+const mockQuery = {
+  select: vi.fn().mockReturnValue(queryPromise),
+  eq: vi.fn().mockReturnValue(queryPromise),
+  order: vi.fn().mockReturnValue(queryPromise),
+};
+(mockQuery as unknown as Promise<unknown>).then = queryPromise.then.bind(queryPromise);
+
+// ✅ 正确：简单直接的Mock配置
+const mockQuery = {
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  order: vi.fn().mockReturnThis(),
+  limit: vi.fn().mockResolvedValue({
+    data: mockData,
+    error: null,
+    count: mockData.length
+  })
+};
+```
+
+#### 17.2.2 Mock数据一致性
+**规则**: Mock数据必须与实际API响应格式保持一致
+
+```typescript
+// ✅ 正确：与实际函数行为一致的Mock
+it('should check if user purchased project', async () => {
+  // 模拟找到已完成的订单
+  const mockQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue({
+      data: [{ id: 'order-123' }], // 返回数组表示找到订单
+      error: null
+    })
+  };
+
+  const result = await checkUserPurchased('buyer-123', 'project-123');
+  expect(result).toBe(true); // 找到订单应返回true
+});
+
+// ❌ 错误：Mock与实际逻辑不符
+it('should check purchase status', async () => {
+  mockQuery.limit.mockResolvedValue({
+    data: { id: 'order-123' }, // 错误：应该是数组
+    error: null
+  });
+
+  const result = await checkUserPurchased('buyer-123', 'project-123');
+  expect(result).toBe(false); // 错误：找到订单却期望false
+});
+```
+
+#### 17.2.3 统一的Mock工具函数
+**规则**: 使用统一的Mock工具函数，避免重复代码
+
+```typescript
+// ✅ 在tests/setup.ts中定义统一的工具函数
+function createMockSupabaseResponse<T>(
+  data: T | null,
+  error: Error | null = null,
+  count: number | null = null
+) {
+  return { data, error, count };
+}
+
+function createMockUser(overrides: Partial<User> = {}): User {
+  return {
+    id: 'test-user-id',
+    email: 'test@example.com',
+    username: 'testuser',
+    role: 'buyer',
+    status: 'active',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+// ✅ 在测试中使用统一的工具函数
+it('should create user successfully', async () => {
+  const userData = createMockUser({ email: 'new@example.com' });
+  const mockResponse = createMockSupabaseResponse(userData);
+
+  mockSupabase.from.mockReturnValue({
+    insert: vi.fn().mockResolvedValue(mockResponse)
+  });
+
+  const result = await createUser(userData);
+  expect(result).toEqual(userData);
+});
+```
+
+### 17.3 测试质量检查清单
+
+#### 17.3.1 测试完整性检查
+- [ ] **正常流程测试**: 验证主要业务流程的正确执行
+- [ ] **错误处理测试**: 验证各种异常情况的处理
+- [ ] **边界条件测试**: 验证边界值和极端情况
+- [ ] **业务规则测试**: 验证核心业务规则的执行
+
+#### 17.3.2 测试质量标准
+- [ ] **测试名称描述性**: 能够清楚表达测试意图
+- [ ] **Mock配置合理**: 简单直接，与实际行为一致
+- [ ] **断言充分**: 验证所有重要的输出和副作用
+- [ ] **测试隔离**: 测试之间相互独立，无依赖关系
+
+#### 17.3.3 覆盖率要求
+- [ ] **语句覆盖率**: ≥ 80%
+- [ ] **分支覆盖率**: ≥ 70%
+- [ ] **函数覆盖率**: ≥ 85%
+- [ ] **核心业务逻辑**: 100%覆盖
+
+### 17.4 常见反模式及避免方法
+
+#### 17.4.1 虚假测试用例
+**反模式**: 为了提高覆盖率而编写的无效测试
+
+```typescript
+// ❌ 反模式：虚假测试
+it('should call function', async () => {
+  await someFunction();
+  expect(someFunction).toHaveBeenCalled(); // 只验证调用，不验证结果
+});
+
+// ❌ 反模式：逻辑错误的测试
+it('should return false when user purchased', async () => {
+  mockReturnPurchaseData(); // Mock返回购买数据
+  const result = await checkUserPurchased('user', 'project');
+  expect(result).toBe(false); // 错误：有购买数据却期望false
+});
+
+// ✅ 正确：有意义的测试
+it('should return true when user has completed purchase', async () => {
+  mockCompletedOrder('user-123', 'project-123');
+
+  const result = await checkUserPurchased('user-123', 'project-123');
+
+  expect(result).toBe(true);
+});
+```
+
+#### 17.4.2 过度Mock
+**反模式**: Mock配置比业务逻辑还复杂
+
+```typescript
+// ❌ 反模式：过度Mock
+it('should fetch projects', async () => {
+  const complexMockSetup = createComplexQueryChain()
+    .withSelect()
+    .withFilters()
+    .withPagination()
+    .withSorting()
+    .build();
+
+  // 50行的Mock配置代码...
+
+  const result = await getProjects();
+  expect(result).toBeDefined();
+});
+
+// ✅ 正确：简化Mock
+it('should return paginated projects', async () => {
+  const mockProjects = [createMockProject(), createMockProject()];
+  mockProjectsQuery(mockProjects);
+
+  const result = await getProjects({ page: 1, limit: 10 });
+
+  expect(result.projects).toHaveLength(2);
+  expect(result.total).toBe(2);
+});
+```
+
+#### 17.4.3 测试实现细节
+**反模式**: 测试关注函数内部实现而不是外部行为
+
+```typescript
+// ❌ 反模式：测试实现细节
+it('should use correct database queries', async () => {
+  await getUserProfile('user-123');
+
+  expect(mockSupabase.from).toHaveBeenCalledWith('users');
+  expect(mockQuery.select).toHaveBeenCalledWith('id, username, email');
+  expect(mockQuery.eq).toHaveBeenCalledWith('id', 'user-123');
+  expect(mockQuery.single).toHaveBeenCalled();
+});
+
+// ✅ 正确：测试业务行为
+it('should return complete user profile for valid user', async () => {
+  const mockUser = createMockUser({ id: 'user-123' });
+  mockUserQuery(mockUser);
+
+  const result = await getUserProfile('user-123');
+
+  expect(result.id).toBe('user-123');
+  expect(result.username).toBeDefined();
+  expect(result.email).toBeDefined();
+});
+```
+
+### 17.5 测试开发工作流
+
+#### 17.5.1 测试驱动开发(TDD)流程
+1. **红色阶段**: 编写失败的测试用例
+2. **绿色阶段**: 编写最少代码使测试通过
+3. **重构阶段**: 优化代码质量，保持测试通过
+
+#### 17.5.2 测试编写检查点
+**编写前**:
+- [ ] 理解函数的实际行为和返回格式
+- [ ] 确定需要测试的业务场景
+- [ ] 准备测试数据和Mock配置
+
+**编写中**:
+- [ ] 使用AAA模式组织测试代码
+- [ ] 编写描述性的测试名称
+- [ ] 验证业务行为而不是实现细节
+
+**编写后**:
+- [ ] 运行测试确保通过
+- [ ] 检查测试覆盖率
+- [ ] 验证Mock配置的正确性
+
+### 17.6 测试性能优化
+
+#### 17.6.1 测试执行优化
+```typescript
+// ✅ 使用beforeEach进行高效的测试设置
+describe('User Service', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupCommonMocks();
+  });
+
+  // ✅ 避免不必要的异步操作
+  it('should validate user data synchronously', () => {
+    const userData = createMockUser({ email: 'invalid-email' });
+
+    const errors = validateUserData(userData);
+
+    expect(errors).toContain('邮箱格式不正确');
+  });
+});
+```
+
+#### 17.6.2 Mock性能优化
+```typescript
+// ✅ 重用Mock配置
+const createStandardMockQuery = (data: any) => ({
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  limit: vi.fn().mockResolvedValue(createMockSupabaseResponse(data))
+});
+
+// ✅ 避免过度复杂的Mock
+const mockUserService = {
+  getUser: vi.fn(),
+  createUser: vi.fn(),
+  updateUser: vi.fn()
+};
+```
+
+## 18. 总结
 
 本开发规范基于实际项目中遇到的 TypeScript 编译错误、ESLint 代码质量问题和测试开发挑战制定，涵盖了：
 
@@ -812,10 +1152,10 @@ npm run type-check
 - **代码质量**: 处理未使用变量，管理导入，替换已弃用 API
 - **架构一致性**: 统一的 Supabase 集成和 API 设计模式
 - **测试规范**: 完整的测试开发流程和 Mock 配置标准
-- **测试质量**: 系统性的测试覆盖率提升策略
+- **测试质量**: 系统性的测试覆盖率提升策略和反模式避免
 - **自动化检查**: 完整的 CI/CD 流程和检查清单
 
-遵循这些规范可以显著提高代码质量，减少编译错误，提升开发效率，确保测试覆盖率达到生产级别要求。
+遵循这些规范可以显著提高代码质量，减少编译错误，提升开发效率，确保测试覆盖率达到生产级别要求，避免虚假测试用例，提升测试的真实价值。
 
 ## 注意事项
 - 所有回复使用中文
