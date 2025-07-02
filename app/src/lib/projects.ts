@@ -54,28 +54,42 @@ export async function getPublishedProjects(options?: {
   // 获取所有唯一的卖家ID
   const sellerIds = [...new Set((data || []).map(p => p.seller_id).filter(Boolean))];
 
-  // 批量获取所有卖家信息
+  // 使用get_public_user_info函数批量获取卖家信息（绕过RLS限制）
   const sellersMap = new Map();
   if (sellerIds.length > 0) {
-    const { data: sellersData } = await supabase
-      .from('users')
-      .select('id, username, status, created_at')
-      .in('id', sellerIds);
-
-    if (sellersData) {
-      sellersData.forEach(seller => {
-        sellersMap.set(seller.id, {
-          id: seller.id,
-          username: seller.username || '',
-          email: '', // 不返回邮箱以保护隐私
-          role: 'seller' as const,
-          status: seller.status || 'active',
-          email_verified: false,
-          created_at: seller.created_at,
-          updated_at: seller.created_at
+    // 并行调用get_public_user_info函数获取所有卖家信息
+    const sellerPromises = sellerIds.map(async (sellerId) => {
+      try {
+        const { data: sellerData } = await supabase.rpc('get_public_user_info', {
+          user_id: sellerId
         });
-      });
-    }
+
+        if (sellerData && sellerData.length > 0) {
+          const seller = sellerData[0];
+          return {
+            id: seller.id,
+            username: seller.username || '',
+            email: '', // 不返回邮箱以保护隐私
+            role: 'seller' as const,
+            status: seller.status || 'active',
+            email_verified: false,
+            created_at: seller.created_at,
+            updated_at: seller.created_at
+          };
+        }
+        return null;
+      } catch (error) {
+        console.error(`获取卖家信息失败 (${sellerId}):`, error);
+        return null;
+      }
+    });
+
+    const sellersResults = await Promise.all(sellerPromises);
+    sellersResults.forEach((seller, index) => {
+      if (seller) {
+        sellersMap.set(sellerIds[index], seller);
+      }
+    });
   }
 
   // 处理项目数据，添加卖家信息
@@ -562,28 +576,42 @@ export async function searchProjects(query: string, options?: {
   // 获取所有唯一的卖家ID
   const sellerIds = [...new Set((data || []).map(p => p.seller_id).filter(Boolean))];
 
-  // 批量获取所有卖家信息
+  // 使用get_public_user_info函数批量获取卖家信息（绕过RLS限制）
   const sellersMap = new Map();
   if (sellerIds.length > 0) {
-    const { data: sellersData } = await supabase
-      .from('users')
-      .select('id, username, status, created_at')
-      .in('id', sellerIds);
-
-    if (sellersData) {
-      sellersData.forEach(seller => {
-        sellersMap.set(seller.id, {
-          id: seller.id,
-          username: seller.username || '',
-          email: '', // 不返回邮箱以保护隐私
-          role: 'seller' as const,
-          status: seller.status || 'active',
-          email_verified: false,
-          created_at: seller.created_at,
-          updated_at: seller.created_at
+    // 并行调用get_public_user_info函数获取所有卖家信息
+    const sellerPromises = sellerIds.map(async (sellerId) => {
+      try {
+        const { data: sellerData } = await supabase.rpc('get_public_user_info', {
+          user_id: sellerId
         });
-      });
-    }
+
+        if (sellerData && sellerData.length > 0) {
+          const seller = sellerData[0];
+          return {
+            id: seller.id,
+            username: seller.username || '',
+            email: '', // 不返回邮箱以保护隐私
+            role: 'seller' as const,
+            status: seller.status || 'active',
+            email_verified: false,
+            created_at: seller.created_at,
+            updated_at: seller.created_at
+          };
+        }
+        return null;
+      } catch (error) {
+        console.error(`获取卖家信息失败 (${sellerId}):`, error);
+        return null;
+      }
+    });
+
+    const sellersResults = await Promise.all(sellerPromises);
+    sellersResults.forEach((seller, index) => {
+      if (seller) {
+        sellersMap.set(sellerIds[index], seller);
+      }
+    });
   }
 
   // 处理项目数据，添加卖家信息
