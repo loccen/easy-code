@@ -9,6 +9,7 @@ import { Layout } from '@/components/layout';
 import { supabase } from '@/lib/supabase';
 import { Button, Card, Loading } from '@/components/ui';
 import { Project } from '@/types';
+import { apiClient } from '@/lib/api/client';
 
 export default function SellerProjectsPage() {
   const { user, loading: authLoading, isSeller } = useAuth();
@@ -33,18 +34,35 @@ export default function SellerProjectsPage() {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          category:categories(name, slug)
-        `)
-        .eq('seller_id', user.id)
-        .order('created_at', { ascending: false });
+      // 使用新的API获取用户项目
+      const apiResult = await apiClient.call({
+        api: {
+          endpoint: '/projects',
+          method: 'GET',
+          params: {
+            seller_id: user.id,
+            sort: 'created_at',
+            order: 'desc'
+          }
+        },
+        supabase: async (client) => {
+          const { data, error, count } = await client
+            .from('projects')
+            .select(`
+              *,
+              category:categories(name, slug)
+            `)
+            .eq('seller_id', user.id)
+            .order('created_at', { ascending: false });
+          return { data, error, count };
+        }
+      }, { useApiRoutes: true });
 
-      if (error) throw error;
-
-      setProjects(data || []);
+      if (apiResult.success) {
+        setProjects(apiResult.data || []);
+      } else {
+        throw new Error(apiResult.error?.message || '加载项目失败');
+      }
     } catch (err) {
       console.error('加载项目失败:', err);
       setError('加载项目失败');

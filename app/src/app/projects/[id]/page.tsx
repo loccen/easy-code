@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Layout } from '@/components/layout';
 import { Button, Card, Badge } from '@/components/ui';
-import { getProjectById, incrementProjectViews, getSellerProjects } from '@/lib/projects';
+import { incrementProjectViews, getSellerProjects } from '@/lib/projects';
 import { checkUserPurchased } from '@/lib/orders';
 import { useAuth } from '@/stores/authStore';
 import { useDialogContext } from '@/components/DialogProvider';
@@ -14,6 +14,7 @@ import PurchaseDialog from '@/components/PurchaseDialog';
 import { Project, User } from '@/types';
 import { getUserDisplayName, getUserDisplayEmail, getUserAvatarLetter } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { apiClient } from '@/lib/api/client';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -80,15 +81,39 @@ export default function ProjectDetailPage() {
       setLoading(true);
       setError(null);
 
-      // 管理员可以查看所有状态的项目，普通用户只能查看已发布的项目
-      const checkStatus = !user?.role || user.role !== 'admin';
-      const projectData = await getProjectById(projectId, checkStatus);
-      
-      if (!projectData) {
+      // 使用新的API客户端获取项目详情
+      const projectResult = await apiClient.call({
+        // API Routes调用
+        api: {
+          endpoint: `/projects/${projectId}`,
+          method: 'GET',
+        },
+        // Supabase直接调用作为备用
+        supabase: (client) => {
+          const checkStatus = !user?.role || user.role !== 'admin';
+          let query = client
+            .from('projects')
+            .select(`
+              *,
+              category:categories(id, name, slug),
+              seller:users!seller_id(id, username, avatar_url, role)
+            `)
+            .eq('id', projectId);
+
+          if (checkStatus) {
+            query = query.eq('status', 'approved');
+          }
+
+          return query.single();
+        }
+      }, { useApiRoutes: true }); // 明确启用API Routes
+
+      if (!projectResult.success || !projectResult.data) {
         setError('项目不存在或已下架');
         return;
       }
 
+      const projectData = projectResult.data;
       setProject(projectData);
 
       // 检查并加载卖家信息
@@ -101,8 +126,18 @@ export default function ProjectDetailPage() {
         }
       }
 
-      // 增加浏览量
-      await incrementProjectViews(projectId);
+      // 增加浏览量 - 使用新的API
+      const viewResult = await apiClient.call({
+        api: {
+          endpoint: `/projects/${projectId}/views`,
+          method: 'POST',
+        },
+        supabase: () => incrementProjectViews(projectId)
+      }, { useApiRoutes: true });
+
+      if (!viewResult.success) {
+        console.warn('增加浏览量失败:', viewResult.error);
+      }
 
       // 检查用户是否已购买（仅登录用户）
       if (user?.id && projectData.seller_id !== user.id) {
@@ -117,7 +152,7 @@ export default function ProjectDetailPage() {
         }
       }
 
-      // 加载卖家的其他项目
+      // 加载卖家的其他项目 - 保持使用原有方法，因为这是特定的业务逻辑
       if (projectData.seller_id) {
         try {
           const otherProjects = await getSellerProjects(projectData.seller_id);

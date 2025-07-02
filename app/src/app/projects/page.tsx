@@ -12,6 +12,7 @@ import { getActiveCategories } from '@/lib/categories';
 import { useAuth } from '@/stores/authStore';
 import { Project, Category, User } from '@/types';
 import { getUserDisplayName, getUserAvatarLetter } from '@/lib/auth';
+import { apiClient } from '@/lib/api/client';
 import { CheckCircle } from 'lucide-react';
 
 function ProjectsPageContent() {
@@ -47,31 +48,69 @@ function ProjectsPageContent() {
       setLoading(true);
       setError(null);
 
-      const offset = (page - 1) * itemsPerPage;
       const category = categoryFilter !== undefined ? categoryFilter : selectedCategory;
       const search = searchFilter !== undefined ? searchFilter : searchQuery;
 
-      let result;
+      let apiResult;
       if (search.trim()) {
-        // 使用搜索功能
-        result = await searchProjects(search, {
-          categoryId: category || undefined,
-          limit: itemsPerPage,
-          offset,
-        });
+        // 使用搜索API
+        apiResult = await apiClient.call({
+          api: {
+            endpoint: '/projects/search',
+            method: 'GET',
+            params: {
+              q: search,
+              page: page.toString(),
+              limit: itemsPerPage.toString(),
+              category_id: category || undefined,
+              sort: sortBy,
+              order: sortOrder,
+            }
+          },
+          supabase: () => searchProjects(search, {
+            categoryId: category || undefined,
+            limit: itemsPerPage,
+            offset: (page - 1) * itemsPerPage,
+          })
+        }, { useApiRoutes: true });
       } else {
-        // 使用普通列表功能
-        result = await getPublishedProjects({
-          categoryId: category || undefined,
-          limit: itemsPerPage,
-          offset,
-          sortBy,
-          sortOrder,
-        });
+        // 使用普通列表API
+        apiResult = await apiClient.call({
+          api: {
+            endpoint: '/projects',
+            method: 'GET',
+            params: {
+              page: page.toString(),
+              limit: itemsPerPage.toString(),
+              category_id: category || undefined,
+              sort: sortBy,
+              order: sortOrder,
+            }
+          },
+          supabase: () => getPublishedProjects({
+            categoryId: category || undefined,
+            limit: itemsPerPage,
+            offset: (page - 1) * itemsPerPage,
+            sortBy,
+            sortOrder,
+          })
+        }, { useApiRoutes: true });
       }
 
-      setProjects(result.projects);
-      setTotal(result.total);
+      if (apiResult.success) {
+        // 新API返回格式
+        if (Array.isArray(apiResult.data)) {
+          setProjects(apiResult.data);
+          setTotal(apiResult.meta?.total || apiResult.data.length);
+        } else {
+          // 兼容旧格式
+          setProjects(apiResult.data?.projects || []);
+          setTotal(apiResult.data?.total || 0);
+        }
+      } else {
+        throw new Error(apiResult.error?.message || '加载项目失败');
+      }
+
       setCurrentPage(page);
     } catch (err) {
       console.error('加载项目失败:', err);

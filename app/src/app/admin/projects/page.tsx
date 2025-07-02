@@ -15,6 +15,7 @@ import {
 } from '@/lib/projects';
 import { getAllCategories } from '@/lib/categories';
 import { Project, Category } from '@/types';
+import { apiClient } from '@/lib/api/client';
 
 export default function AdminProjectsPage() {
   const { user, loading: authLoading, isAdmin } = useAuth();
@@ -63,20 +64,46 @@ export default function AdminProjectsPage() {
     try {
       setLoading(true);
       setError('');
-      
-      const offset = (currentPage - 1) * itemsPerPage;
-      const result = await getAllProjectsForAdmin({
-        status: selectedStatus,
-        categoryId: selectedCategory || undefined,
-        search: searchQuery || undefined,
-        limit: itemsPerPage,
-        offset,
-        sortBy: 'updated_at',
-        sortOrder: 'desc',
-      });
-      
-      setProjects(result.projects);
-      setTotalProjects(result.total);
+
+      // 使用新的管理员API
+      const apiResult = await apiClient.call({
+        api: {
+          endpoint: '/admin/projects',
+          method: 'GET',
+          params: {
+            page: currentPage.toString(),
+            limit: itemsPerPage.toString(),
+            status: selectedStatus || undefined,
+            category_id: selectedCategory || undefined,
+            search: searchQuery || undefined,
+            sort: 'updated_at',
+            order: 'desc',
+          }
+        },
+        supabase: () => getAllProjectsForAdmin({
+          status: selectedStatus,
+          categoryId: selectedCategory || undefined,
+          search: searchQuery || undefined,
+          limit: itemsPerPage,
+          offset: (currentPage - 1) * itemsPerPage,
+          sortBy: 'updated_at',
+          sortOrder: 'desc',
+        })
+      }, { useApiRoutes: true });
+
+      if (apiResult.success) {
+        // 新API返回格式
+        if (Array.isArray(apiResult.data)) {
+          setProjects(apiResult.data);
+          setTotalProjects(apiResult.meta?.total || apiResult.data.length);
+        } else {
+          // 兼容旧格式
+          setProjects(apiResult.data?.projects || []);
+          setTotalProjects(apiResult.data?.total || 0);
+        }
+      } else {
+        throw new Error(apiResult.error?.message || '加载项目列表失败');
+      }
     } catch (err) {
       console.error('加载项目列表失败:', err);
       setError('加载项目列表失败');
@@ -114,9 +141,21 @@ export default function AdminProjectsPage() {
   const handleStatusChange = async (project: Project, newStatus: string) => {
     try {
       setError('');
-      
-      await updateProjectStatusAsAdmin(project.id, newStatus);
-      
+
+      // 使用新的API更新项目状态
+      const apiResult = await apiClient.call({
+        api: {
+          endpoint: `/projects/${project.id}/status`,
+          method: 'PUT',
+          body: { status: newStatus }
+        },
+        supabase: () => updateProjectStatusAsAdmin(project.id, newStatus)
+      }, { useApiRoutes: true });
+
+      if (!apiResult.success) {
+        throw new Error(apiResult.error?.message || '更新项目状态失败');
+      }
+
       setSuccess(`项目"${project.title}"状态已更新为${getStatusText(newStatus)}！`);
       await loadProjects();
       await loadStats();
@@ -132,11 +171,26 @@ export default function AdminProjectsPage() {
     try {
       setError('');
       
-      await updateProjectStatusAsAdmin(
-        reviewingProject.id, 
-        reviewAction, 
-        reviewComment
-      );
+      // 使用新的API更新项目状态
+      const apiResult = await apiClient.call({
+        api: {
+          endpoint: `/projects/${reviewingProject.id}/status`,
+          method: 'PUT',
+          body: {
+            status: reviewAction,
+            rejection_reason: reviewComment
+          }
+        },
+        supabase: () => updateProjectStatusAsAdmin(
+          reviewingProject.id,
+          reviewAction,
+          reviewComment
+        )
+      }, { useApiRoutes: true });
+
+      if (!apiResult.success) {
+        throw new Error(apiResult.error?.message || '更新项目状态失败');
+      }
       
       setSuccess(`项目"${reviewingProject.title}"已${reviewAction === 'approved' ? '批准' : '拒绝'}！`);
       setReviewingProject(null);

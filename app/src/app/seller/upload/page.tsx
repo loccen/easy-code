@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { getActiveCategories } from '@/lib/categories';
 import { Button, Card, Input, Loading } from '@/components/ui';
 import { Category } from '@/types';
+import { apiClient } from '@/lib/api/client';
 
 export default function ProjectUploadPage() {
   const { user, loading: authLoading, isSeller } = useAuth();
@@ -145,35 +146,60 @@ export default function ProjectUploadPage() {
         return;
       }
 
-      // 创建项目记录
+      // 创建项目记录 - 使用新的API
       const projectData = {
-        seller_id: user.id,
         title: formData.title.trim(),
-        short_description: formData.short_description.trim() || null,
         description: formData.description.trim(),
-        category_id: formData.category_id || null,
         price: parseFloat(formData.price),
-        tech_stack: formData.tech_stack.length > 0 ? formData.tech_stack : null,
-        demo_url: formData.demo_url.trim() || null,
-        github_url: formData.github_url.trim() || null,
-        documentation_url: formData.documentation_url.trim() || null,
-        is_dockerized: formData.is_dockerized,
-        docker_verified: false,
-        status: 'draft' as const,
-        download_count: 0,
-        view_count: 0,
-        rating_average: 0,
-        rating_count: 0,
-        featured: false,
+        category_id: formData.category_id,
+        tech_stack: formData.tech_stack.length > 0 ? formData.tech_stack : [],
+        demo_url: formData.demo_url.trim() || undefined,
+        github_url: formData.github_url.trim() || undefined,
+        documentation: formData.documentation_url.trim() || undefined,
+        features: [], // 可以后续添加功能特性字段
+        requirements: [], // 可以后续添加使用要求字段
       };
 
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .insert(projectData)
-        .select()
-        .single();
+      const apiResult = await apiClient.call({
+        api: {
+          endpoint: '/projects',
+          method: 'POST',
+          body: projectData
+        },
+        supabase: async (client) => {
+          const { data, error, count } = await client
+            .from('projects')
+            .insert({
+              seller_id: user.id,
+              title: formData.title.trim(),
+              short_description: formData.short_description.trim() || null,
+              description: formData.description.trim(),
+              category_id: formData.category_id || null,
+              price: parseFloat(formData.price),
+              tech_stack: formData.tech_stack.length > 0 ? formData.tech_stack : null,
+              demo_url: formData.demo_url.trim() || null,
+              github_url: formData.github_url.trim() || null,
+              documentation_url: formData.documentation_url.trim() || null,
+              is_dockerized: formData.is_dockerized,
+              docker_verified: false,
+              status: 'draft' as const,
+              download_count: 0,
+              view_count: 0,
+              rating_average: 0,
+              rating_count: 0,
+              featured: false,
+            })
+            .select()
+            .single();
+          return { data, error, count };
+        }
+      }, { useApiRoutes: true });
 
-      if (projectError) throw projectError;
+      if (!apiResult.success) {
+        throw new Error(apiResult.error?.message || '创建项目失败');
+      }
+
+      const project = apiResult.data;
 
       // 上传文件
       let fileUrls: string[] = [];

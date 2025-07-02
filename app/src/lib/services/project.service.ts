@@ -220,6 +220,79 @@ export class ProjectService extends BaseService<Project> {
     `);
   }
 
+  /**
+   * 增加项目浏览量
+   */
+  async incrementViews(id: string): Promise<ApiResponse<void>> {
+    try {
+      const { error } = await this.supabase.rpc('increment_project_views', {
+        project_id: id
+      });
+
+      if (error) {
+        console.error('增加浏览量失败:', error);
+        return ResponseWrapper.error(ErrorCode.INTERNAL_ERROR, '增加浏览量失败', error);
+      }
+
+      return ResponseWrapper.success(undefined);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * 增加项目下载量
+   */
+  async incrementDownloads(id: string): Promise<ApiResponse<void>> {
+    try {
+      const { error } = await this.supabase.rpc('increment_project_downloads', {
+        project_id: id
+      });
+
+      if (error) {
+        console.error('增加下载量失败:', error);
+        return ResponseWrapper.error(ErrorCode.INTERNAL_ERROR, '增加下载量失败', error);
+      }
+
+      return ResponseWrapper.success(undefined);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * 管理员删除项目
+   */
+  async deleteProjectAsAdmin(id: string): Promise<ApiResponse<void>> {
+    // 管理员删除不需要检查所有权，但需要检查业务规则
+    const validationResult = await this.validateDelete(id);
+    if (!validationResult.success) {
+      return validationResult as ApiResponse<void>;
+    }
+
+    return this.delete(id);
+  }
+
+  /**
+   * 获取管理员项目列表（包含所有状态）
+   */
+  async getAdminProjects(params: ProjectQueryParams = {}): Promise<ApiResponse<Project[]>> {
+    // 管理员可以查看所有状态的项目，不过滤status
+    const queryParams = {
+      ...params,
+      filters: {
+        ...params.filters,
+        // 不添加status过滤
+      },
+    };
+
+    return this.findMany(queryParams, `
+      *,
+      category:categories(id, name, slug),
+      seller:users!seller_id(id, username, avatar_url)
+    `);
+  }
+
   // 重写基类方法
 
   /**
