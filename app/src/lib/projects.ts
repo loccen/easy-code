@@ -51,37 +51,40 @@ export async function getPublishedProjects(options?: {
     throw error;
   }
 
-  // 为每个项目获取卖家信息
-  const projects = await Promise.all(
-    (data || []).map(async (project: Project) => {
-      if (project.seller_id) {
-        try {
-          const { data: sellerData } = await supabase.rpc('get_public_user_info', {
-            user_id: project.seller_id
-          });
+  // 获取所有唯一的卖家ID
+  const sellerIds = [...new Set((data || []).map(p => p.seller_id).filter(Boolean))];
 
-          if (sellerData && sellerData.length > 0) {
-            const seller = sellerData[0];
-            project.seller = {
-              id: seller.id,
-              username: seller.username,
-              email: '', // 不返回邮箱以保护隐私
-              status: seller.status,
-              created_at: seller.created_at,
-              role: 'seller' as const,
-              email_verified: false,
-              updated_at: seller.created_at
-            };
-          }
-        } catch (err) {
-          console.error('获取卖家信息失败:', err);
-          // 如果获取卖家信息失败，设置为undefined
-          project.seller = undefined;
-        }
-      }
-      return project;
-    })
-  );
+  // 批量获取所有卖家信息
+  const sellersMap = new Map();
+  if (sellerIds.length > 0) {
+    const { data: sellersData } = await supabase
+      .from('users')
+      .select('id, username, status, created_at')
+      .in('id', sellerIds);
+
+    if (sellersData) {
+      sellersData.forEach(seller => {
+        sellersMap.set(seller.id, {
+          id: seller.id,
+          username: seller.username || '',
+          email: '', // 不返回邮箱以保护隐私
+          role: 'seller' as const,
+          status: seller.status || 'active',
+          email_verified: false,
+          created_at: seller.created_at,
+          updated_at: seller.created_at
+        });
+      });
+    }
+  }
+
+  // 处理项目数据，添加卖家信息
+  const projects = (data || []).map((project: Project) => {
+    if (project.seller_id && sellersMap.has(project.seller_id)) {
+      project.seller = sellersMap.get(project.seller_id);
+    }
+    return project;
+  });
 
   return {
     projects: projects || [],
@@ -511,8 +514,7 @@ export async function searchProjects(query: string, options?: {
     .from('projects')
     .select(`
       *,
-      category:categories(name, slug),
-      seller:users(username, email)
+      category:categories(name, slug)
     `, { count: 'exact' })
     .eq('status', 'approved');
 
@@ -557,8 +559,43 @@ export async function searchProjects(query: string, options?: {
     throw error;
   }
 
+  // 获取所有唯一的卖家ID
+  const sellerIds = [...new Set((data || []).map(p => p.seller_id).filter(Boolean))];
+
+  // 批量获取所有卖家信息
+  const sellersMap = new Map();
+  if (sellerIds.length > 0) {
+    const { data: sellersData } = await supabase
+      .from('users')
+      .select('id, username, status, created_at')
+      .in('id', sellerIds);
+
+    if (sellersData) {
+      sellersData.forEach(seller => {
+        sellersMap.set(seller.id, {
+          id: seller.id,
+          username: seller.username || '',
+          email: '', // 不返回邮箱以保护隐私
+          role: 'seller' as const,
+          status: seller.status || 'active',
+          email_verified: false,
+          created_at: seller.created_at,
+          updated_at: seller.created_at
+        });
+      });
+    }
+  }
+
+  // 处理项目数据，添加卖家信息
+  const projects = (data || []).map((project: Project) => {
+    if (project.seller_id && sellersMap.has(project.seller_id)) {
+      project.seller = sellersMap.get(project.seller_id);
+    }
+    return project;
+  });
+
   return {
-    projects: data || [],
+    projects,
     total: count || 0
   };
 }
