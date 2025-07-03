@@ -7,7 +7,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// 客户端Supabase实例
+// 注意：客户端Supabase实例已弃用，请使用API Routes
+// 此导出仅为向后兼容，将在未来版本中移除
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,

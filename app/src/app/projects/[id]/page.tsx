@@ -6,15 +6,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Layout } from '@/components/layout';
 import { Button, Card, Badge } from '@/components/ui';
-import { incrementProjectViews, getSellerProjects } from '@/lib/projects';
+import { projectsService } from '@/lib/services/projects.service';
 import { checkUserPurchased } from '@/lib/orders';
 import { useAuth } from '@/stores/authStore';
 import { useDialogContext } from '@/components/DialogProvider';
 import PurchaseDialog from '@/components/PurchaseDialog';
 import { Project, User } from '@/types';
 import { getUserDisplayName, getUserDisplayEmail, getUserAvatarLetter } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
-import { apiClient } from '@/lib/api/client';
+import { authService } from '@/lib/services/auth.service';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -40,28 +39,20 @@ export default function ProjectDetailPage() {
       setSellerLoading(true);
       setSellerError(null);
 
-      const { data, error } = await supabase.rpc('get_public_user_info', {
-        user_id: sellerId
-      });
+      const result = await authService.getPublicUserInfo(sellerId);
 
-      if (error) {
-        console.error('获取卖家信息失败:', error);
+      if (!result.success || !result.data) {
+        console.error('获取卖家信息失败:', result.error);
         setSellerError('卖家信息获取失败');
         return;
       }
 
-      if (!data || data.length === 0) {
-        setSellerError('卖家信息获取失败');
-        return;
-      }
-
-      // 数据库函数返回数组，取第一个元素
-      const sellerData = data[0];
+      const sellerData = result.data;
       setSeller({
         id: sellerData.id,
         username: sellerData.username,
         email: '', // 不返回邮箱信息以保护隐私
-        status: sellerData.status,
+        status: 'active', // 默认状态
         created_at: sellerData.created_at,
         // 添加其他必需的字段
         role: 'seller' as const,
@@ -81,32 +72,8 @@ export default function ProjectDetailPage() {
       setLoading(true);
       setError(null);
 
-      // 使用新的API客户端获取项目详情
-      const projectResult = await apiClient.call({
-        // API Routes调用
-        api: {
-          endpoint: `/projects/${projectId}`,
-          method: 'GET',
-        },
-        // Supabase直接调用作为备用
-        supabase: (client) => {
-          const checkStatus = !user?.role || user.role !== 'admin';
-          let query = client
-            .from('projects')
-            .select(`
-              *,
-              category:categories(id, name, slug),
-              seller:users!seller_id(id, username, avatar_url, role)
-            `)
-            .eq('id', projectId);
-
-          if (checkStatus) {
-            query = query.eq('status', 'approved');
-          }
-
-          return query.single();
-        }
-      }, { useApiRoutes: true }); // 明确启用API Routes
+      // 使用新的项目服务获取项目详情
+      const projectResult = await projectsService.getProject(projectId);
 
       if (!projectResult.success || !projectResult.data) {
         setError('项目不存在或已下架');
@@ -118,22 +85,11 @@ export default function ProjectDetailPage() {
 
       // 检查并加载卖家信息
       if (projectData.seller_id) {
-        // 如果JOIN查询没有返回完整的卖家信息，单独查询
-        if (!projectData.seller || !projectData.seller.status) {
-          await loadSeller(projectData.seller_id);
-        } else {
-          setSeller(projectData.seller);
-        }
+        await loadSeller(projectData.seller_id);
       }
 
-      // 增加浏览量 - 使用新的API
-      const viewResult = await apiClient.call({
-        api: {
-          endpoint: `/projects/${projectId}/views`,
-          method: 'POST',
-        },
-        supabase: () => incrementProjectViews(projectId)
-      }, { useApiRoutes: true });
+      // 增加浏览量 - 使用新的项目服务
+      const viewResult = await projectsService.incrementViews(projectId);
 
       if (!viewResult.success) {
         console.warn('增加浏览量失败:', viewResult.error);
@@ -152,11 +108,15 @@ export default function ProjectDetailPage() {
         }
       }
 
-      // 加载卖家的其他项目 - 保持使用原有方法，因为这是特定的业务逻辑
+      // 加载卖家的其他项目
       if (projectData.seller_id) {
         try {
-          const otherProjects = await getSellerProjects(projectData.seller_id);
-          setSellerProjects(otherProjects.filter(p => p.id !== projectId).slice(0, 4));
+          const otherProjectsResult = await projectsService.getSellerProjects(projectData.seller_id, {
+            limit: 5, // 获取5个，过滤掉当前项目后显示4个
+          });
+          if (otherProjectsResult.success && otherProjectsResult.data) {
+            setSellerProjects(otherProjectsResult.data.filter((p: Project) => p.id !== projectId).slice(0, 4));
+          }
         } catch (err) {
           console.error('加载卖家其他项目失败:', err);
         }

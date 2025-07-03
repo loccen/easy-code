@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
-import { getCurrentUser, signOut as authSignOut } from '@/lib/auth';
+import { authService } from '@/lib/services/auth.service';
+import { authTokenManager } from '@/lib/api/fetch-client';
 import type { AuthUser } from '@/lib/auth';
 
 interface AuthState {

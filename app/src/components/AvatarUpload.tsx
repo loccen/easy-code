@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { authService } from '@/lib/services/auth.service';
 import { Avatar, Button } from '@/components/ui';
 import { useAuth, useAuthStore } from '@/stores/authStore';
 
@@ -47,50 +47,18 @@ export default function AvatarUpload({
       setUploading(true);
       setError('');
 
-      // 生成唯一文件名
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      // 使用认证服务上传头像
+      const result = await authService.uploadAvatar(file);
 
-      // 上传到Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('user-uploads')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) throw uploadError;
-
-      // 获取公共URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('user-uploads')
-        .getPublicUrl(filePath);
-
-      // 更新用户资料中的头像URL
-      const { error: updateError } = await supabase
-        .from('user_profiles')
-        .upsert({
-          user_id: user.id,
-          avatar_url: publicUrl,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-
-      if (updateError) throw updateError;
-
-      // 删除旧头像（如果存在且不是默认头像）
-      if (currentAvatarUrl && currentAvatarUrl.includes('user-uploads/avatars/')) {
-        const oldPath = currentAvatarUrl.split('/').slice(-2).join('/');
-        await supabase.storage
-          .from('user-uploads')
-          .remove([oldPath]);
+      if (!result.success) {
+        throw new Error(result.error?.message || '上传失败');
       }
 
       // 刷新用户信息
       await refreshUser();
-      
+
       // 调用成功回调
-      onUploadSuccess?.(publicUrl);
+      onUploadSuccess?.(result.data.avatar_url);
 
       // 清空文件输入
       if (fileInputRef.current) {

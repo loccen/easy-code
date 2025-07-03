@@ -1,11 +1,12 @@
 /**
- * API中间件
- * 提供统一的请求处理、验证和响应格式化
+ * API中间件系统
+ * 用于App Router架构重构 - 统一的请求处理、验证和响应格式化
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { ResponseWrapper, ErrorCode, BusinessError } from './response';
+import { ResponseBuilder } from './types';
 import { z } from 'zod';
 
 // API处理器类型

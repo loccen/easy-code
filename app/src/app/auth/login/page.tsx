@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signIn } from '@/lib/auth';
+import { authService } from '@/lib/services/auth.service';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function LoginPage() {
@@ -21,36 +21,18 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await signIn(email, password);
-      await refreshUser();
-      router.push('/dashboard');
+      const result = await authService.login({ email, password });
+
+      if (result.success) {
+        await refreshUser();
+        router.push('/dashboard');
+      } else {
+        // 使用API返回的错误信息
+        setError(result.error?.message || '登录失败');
+      }
     } catch (err) {
       console.error('登录错误:', err);
-
-      // 将 Supabase 错误信息转换为用户友好的中文提示
-      let errorMessage = '登录失败';
-
-      if (err instanceof Error) {
-        const message = err.message.toLowerCase();
-
-        if (message.includes('invalid login credentials') ||
-            message.includes('invalid credentials') ||
-            message.includes('email not confirmed')) {
-          errorMessage = '邮箱或密码错误，请检查后重试';
-        } else if (message.includes('email not found') ||
-                   message.includes('user not found')) {
-          errorMessage = '该邮箱尚未注册';
-        } else if (message.includes('too many requests')) {
-          errorMessage = '登录尝试过于频繁，请稍后再试';
-        } else if (message.includes('network') ||
-                   message.includes('connection')) {
-          errorMessage = '网络连接异常，请检查网络后重试';
-        } else {
-          errorMessage = '登录失败，请稍后重试';
-        }
-      }
-
-      setError(errorMessage);
+      setError('登录失败，请稍后重试');
     } finally {
       setLoading(false);
     }

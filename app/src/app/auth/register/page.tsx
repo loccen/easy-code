@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signUp, checkUsernameAvailable, checkEmailAvailable } from '@/lib/auth';
+import { authService } from '@/lib/services/auth.service';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function RegisterPage() {
@@ -44,12 +44,17 @@ export default function RegisterPage() {
 
     setUsernameChecking(true);
     try {
-      const available = await checkUsernameAvailable(formData.username);
-      setUsernameAvailable(available);
-      if (!available) {
-        setError('用户名已被使用');
+      const result = await authService.checkUsernameAvailable(formData.username);
+      if (result.success) {
+        setUsernameAvailable(result.data?.available || false);
+        if (!result.data?.available) {
+          setError('用户名已被使用');
+        } else {
+          setError('');
+        }
       } else {
-        setError('');
+        setError(result.error?.message || '检查用户名时出错');
+        setUsernameAvailable(null);
       }
     } catch (err) {
       console.error('检查用户名失败:', err);
@@ -75,12 +80,17 @@ export default function RegisterPage() {
 
     setEmailChecking(true);
     try {
-      const available = await checkEmailAvailable(formData.email);
-      setEmailAvailable(available);
-      if (!available) {
-        setError('邮箱已被使用');
+      const result = await authService.checkEmailAvailable(formData.email);
+      if (result.success) {
+        setEmailAvailable(result.data?.available || false);
+        if (!result.data?.available) {
+          setError('邮箱已被使用');
+        } else {
+          setError('');
+        }
       } else {
-        setError('');
+        setError(result.error?.message || '检查邮箱时出错');
+        setEmailAvailable(null);
       }
     } catch (err) {
       console.error('检查邮箱失败:', err);
@@ -122,15 +132,21 @@ export default function RegisterPage() {
     }
 
     try {
-      await signUp(formData.email, formData.password, formData.username);
+      const result = await authService.register({
+        email: formData.email,
+        password: formData.password,
+        username: formData.username,
+      });
 
-      // 等待一小段时间确保数据库事务完成
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      await refreshUser();
-      router.push('/dashboard');
+      if (result.success) {
+        await refreshUser();
+        router.push('/dashboard');
+      } else {
+        setError(result.error?.message || '注册失败');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '注册失败');
+      console.error('注册错误:', err);
+      setError('注册失败，请稍后重试');
     } finally {
       setLoading(false);
     }

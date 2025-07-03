@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/stores/authStore';
 import { Layout } from '@/components/layout';
-import { supabase } from '@/lib/supabase';
 import { getActiveCategories } from '@/lib/categories';
 import { Button, Card, Input, Loading } from '@/components/ui';
 import { Category } from '@/types';
-import { apiClient } from '@/lib/api/client';
+import { projectsService } from '@/lib/services/projects.service';
 
 export default function ProjectUploadPage() {
   const { user, loading: authLoading, isSeller } = useAuth();
@@ -94,34 +93,7 @@ export default function ProjectUploadPage() {
     setUploadedFiles(files);
   };
 
-  const uploadProjectFiles = async (projectId: string): Promise<string[]> => {
-    if (uploadedFiles.length === 0) return [];
 
-    const uploadedUrls: string[] = [];
-
-    for (const file of uploadedFiles) {
-      // const fileExt = file.name.split('.').pop();
-      const fileName = `${projectId}/${Date.now()}-${file.name}`;
-      const filePath = `projects/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('project-files')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('project-files')
-        .getPublicUrl(filePath);
-
-      uploadedUrls.push(publicUrl);
-    }
-
-    return uploadedUrls;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,40 +132,7 @@ export default function ProjectUploadPage() {
         requirements: [], // 可以后续添加使用要求字段
       };
 
-      const apiResult = await apiClient.call({
-        api: {
-          endpoint: '/projects',
-          method: 'POST',
-          body: projectData
-        },
-        supabase: async (client) => {
-          const { data, error, count } = await client
-            .from('projects')
-            .insert({
-              seller_id: user.id,
-              title: formData.title.trim(),
-              short_description: formData.short_description.trim() || null,
-              description: formData.description.trim(),
-              category_id: formData.category_id || null,
-              price: parseFloat(formData.price),
-              tech_stack: formData.tech_stack.length > 0 ? formData.tech_stack : null,
-              demo_url: formData.demo_url.trim() || null,
-              github_url: formData.github_url.trim() || null,
-              documentation_url: formData.documentation_url.trim() || null,
-              is_dockerized: formData.is_dockerized,
-              docker_verified: false,
-              status: 'draft' as const,
-              download_count: 0,
-              view_count: 0,
-              rating_average: 0,
-              rating_count: 0,
-              featured: false,
-            })
-            .select()
-            .single();
-          return { data, error, count };
-        }
-      }, { useApiRoutes: true });
+      const apiResult = await projectsService.createProject(projectData);
 
       if (!apiResult.success) {
         throw new Error(apiResult.error?.message || '创建项目失败');
@@ -202,25 +141,17 @@ export default function ProjectUploadPage() {
       const project = apiResult.data;
 
       // 上传文件
-      let fileUrls: string[] = [];
       if (uploadedFiles.length > 0) {
         setUploading(true);
         try {
-          fileUrls = await uploadProjectFiles(project.id);
+          const uploadResult = await projectsService.uploadProjectFiles(project.id, uploadedFiles);
 
-          // 更新项目记录，保存文件URL
-          const { error: updateError } = await supabase
-            .from('projects')
-            .update({ file_urls: fileUrls })
-            .eq('id', project.id);
-
-          if (updateError) {
-            console.error('保存文件URL失败:', updateError);
-            setError('项目创建成功，文件上传成功，但保存文件信息失败。请联系管理员。');
+          if (!uploadResult.success) {
+            console.error('文件上传失败:', uploadResult.error);
+            setError('项目创建成功，但文件上传失败。您可以稍后在项目管理页面重新上传文件。');
           }
         } catch (uploadError) {
           console.error('文件上传失败:', uploadError);
-          // 项目已创建，但文件上传失败，给用户提示
           setError('项目创建成功，但文件上传失败。您可以稍后在项目管理页面重新上传文件。');
         } finally {
           setUploading(false);

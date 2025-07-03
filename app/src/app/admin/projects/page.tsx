@@ -7,15 +7,9 @@ import { Layout } from '@/components/layout';
 import { Button, Card, Badge, Loading, Input } from '@/components/ui';
 import { useAuth } from '@/stores/authStore';
 import { useDialogContext } from '@/components/DialogProvider';
-import {
-  getAllProjectsForAdmin,
-  getProjectStatsForAdmin,
-  updateProjectStatusAsAdmin,
-  deleteProjectAsAdmin
-} from '@/lib/projects';
 import { getAllCategories } from '@/lib/categories';
 import { Project, Category } from '@/types';
-import { apiClient } from '@/lib/api/client';
+import { projectsService } from '@/lib/services/projects.service';
 
 export default function AdminProjectsPage() {
   const { user, loading: authLoading, isAdmin } = useAuth();
@@ -65,42 +59,20 @@ export default function AdminProjectsPage() {
       setLoading(true);
       setError('');
 
-      // 使用新的管理员API
-      const apiResult = await apiClient.call({
-        api: {
-          endpoint: '/admin/projects',
-          method: 'GET',
-          params: {
-            page: currentPage.toString(),
-            limit: itemsPerPage.toString(),
-            status: selectedStatus || undefined,
-            category_id: selectedCategory || undefined,
-            search: searchQuery || undefined,
-            sort: 'updated_at',
-            order: 'desc',
-          }
-        },
-        supabase: () => getAllProjectsForAdmin({
-          status: selectedStatus,
-          categoryId: selectedCategory || undefined,
-          search: searchQuery || undefined,
-          limit: itemsPerPage,
-          offset: (currentPage - 1) * itemsPerPage,
-          sortBy: 'updated_at',
-          sortOrder: 'desc',
-        })
-      }, { useApiRoutes: true });
+      // 使用新的管理员项目服务
+      const apiResult = await projectsService.getAllProjectsForAdmin({
+        page: currentPage,
+        limit: itemsPerPage,
+        status: selectedStatus || undefined,
+        categoryId: selectedCategory || undefined,
+        search: searchQuery || undefined,
+        sortBy: 'updated_at',
+        sortOrder: 'desc',
+      });
 
       if (apiResult.success) {
-        // 新API返回格式
-        if (Array.isArray(apiResult.data)) {
-          setProjects(apiResult.data);
-          setTotalProjects(apiResult.meta?.total || apiResult.data.length);
-        } else {
-          // 兼容旧格式
-          setProjects(apiResult.data?.projects || []);
-          setTotalProjects(apiResult.data?.total || 0);
-        }
+        setProjects(apiResult.data || []);
+        setTotalProjects(apiResult.meta?.total || 0);
       } else {
         throw new Error(apiResult.error?.message || '加载项目列表失败');
       }
@@ -142,15 +114,11 @@ export default function AdminProjectsPage() {
     try {
       setError('');
 
-      // 使用新的API更新项目状态
-      const apiResult = await apiClient.call({
-        api: {
-          endpoint: `/projects/${project.id}/status`,
-          method: 'PUT',
-          body: { status: newStatus }
-        },
-        supabase: () => updateProjectStatusAsAdmin(project.id, newStatus)
-      }, { useApiRoutes: true });
+      // 使用新的项目服务更新项目状态
+      const apiResult = await projectsService.reviewProject(
+        project.id,
+        newStatus as 'approve' | 'reject'
+      );
 
       if (!apiResult.success) {
         throw new Error(apiResult.error?.message || '更新项目状态失败');
@@ -171,22 +139,12 @@ export default function AdminProjectsPage() {
     try {
       setError('');
       
-      // 使用新的API更新项目状态
-      const apiResult = await apiClient.call({
-        api: {
-          endpoint: `/projects/${reviewingProject.id}/status`,
-          method: 'PUT',
-          body: {
-            status: reviewAction,
-            rejection_reason: reviewComment
-          }
-        },
-        supabase: () => updateProjectStatusAsAdmin(
-          reviewingProject.id,
-          reviewAction,
-          reviewComment
-        )
-      }, { useApiRoutes: true });
+      // 使用新的项目服务更新项目状态
+      const apiResult = await projectsService.reviewProject(
+        reviewingProject.id,
+        reviewAction as 'approve' | 'reject',
+        reviewComment
+      );
 
       if (!apiResult.success) {
         throw new Error(apiResult.error?.message || '更新项目状态失败');
