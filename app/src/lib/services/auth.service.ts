@@ -170,6 +170,13 @@ export class AuthService {
   }
 
   /**
+   * 删除头像
+   */
+  async deleteAvatar(): Promise<ApiResponse<{ message: string }>> {
+    return apiClient.delete('/auth/avatar');
+  }
+
+  /**
    * 获取用户公开信息
    */
   async getPublicUserInfo(userId: string): Promise<ApiResponse<{

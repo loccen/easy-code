@@ -58,7 +58,7 @@ export default function AvatarUpload({
       await refreshUser();
 
       // 调用成功回调
-      onUploadSuccess?.(result.data.avatar_url);
+      onUploadSuccess?.(result.data?.avatar_url || '');
 
       // 清空文件输入
       if (fileInputRef.current) {
@@ -80,28 +80,16 @@ export default function AvatarUpload({
       setUploading(true);
       setError('');
 
-      // 更新用户资料，移除头像URL
-      const { error: updateError } = await supabase
-        .from('user_profiles')
-        .upsert({
-          user_id: user.id,
-          avatar_url: null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+      // 使用认证服务删除头像
+      const result = await authService.deleteAvatar();
 
-      if (updateError) throw updateError;
-
-      // 删除存储中的头像文件（如果是上传的文件）
-      if (currentAvatarUrl.includes('user-uploads/avatars/')) {
-        const filePath = currentAvatarUrl.split('/').slice(-2).join('/');
-        await supabase.storage
-          .from('user-uploads')
-          .remove([filePath]);
+      if (!result.success) {
+        throw new Error(result.error?.message || '删除头像失败');
       }
 
       // 刷新用户信息
       await refreshUser();
-      
+
       // 调用成功回调
       onUploadSuccess?.('');
 

@@ -9,6 +9,7 @@ import { Layout } from '@/components/layout';
 import { Button, Card, Loading } from '@/components/ui';
 import { Project } from '@/types';
 import { projectsService } from '@/lib/services/projects.service';
+import { apiClient } from '@/lib/api/fetch-client';
 
 export default function SellerProjectsPage() {
   const { user, loading: authLoading, isSeller } = useAuth();
@@ -62,16 +63,16 @@ export default function SellerProjectsPage() {
   const handleStatusChange = async (projectId: string, newStatus: string) => {
     try {
       setError('');
-      
-      const { error } = await supabase
-        .from('projects')
-        .update({
-          status: newStatus,
-          published_at: newStatus === 'approved' ? new Date().toISOString() : null
-        })
-        .eq('id', projectId);
 
-      if (error) throw error;
+      // 使用API路由更新项目状态
+      const response = await apiClient.put(`/projects/${projectId}`, {
+        status: newStatus,
+        published_at: newStatus === 'approved' ? new Date().toISOString() : null
+      });
+
+      if (!response.success) {
+        throw new Error(response.error?.message || '更新项目状态失败');
+      }
 
       setSuccess(`项目状态已更新为${getStatusText(newStatus)}！`);
       await loadProjects();
@@ -95,12 +96,12 @@ export default function SellerProjectsPage() {
     try {
       setError('');
 
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', project.id);
+      // 使用API路由删除项目
+      const response = await apiClient.delete(`/projects/${project.id}`);
 
-      if (error) throw error;
+      if (!response.success) {
+        throw new Error(response.error?.message || '删除项目失败');
+      }
 
       await alert({
         type: 'success',

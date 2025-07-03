@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/stores/authStore';
 import { Layout } from '@/components/layout';
-import { supabase } from '@/lib/supabase';
+import { apiClient } from '@/lib/api/fetch-client';
 
 import { Button, Card, Input, Loading } from '@/components/ui';
 
@@ -79,23 +79,15 @@ export default function SettingsPage() {
         return;
       }
 
-      // 先验证当前密码
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: passwordForm.currentPassword
+      // 使用密码修改API
+      const result = await apiClient.post('/auth/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
       });
 
-      if (signInError) {
-        setError('当前密码不正确');
-        return;
+      if (!result.success) {
+        throw new Error(result.error?.message || '密码修改失败');
       }
-
-      // 更新密码
-      const { error } = await supabase.auth.updateUser({
-        password: passwordForm.newPassword
-      });
-
-      if (error) throw error;
 
       setSuccess('密码更新成功！');
       setPasswordForm({
@@ -120,18 +112,15 @@ export default function SettingsPage() {
       setLoading(true);
       setError('');
 
-      // 使用软删除函数，现在它会同时删除 auth.users 记录
-      const { error: rpcError } = await supabase.rpc('soft_delete_user_account');
+      // 使用账户删除API
+      const result = await apiClient.delete('/auth/delete-account');
 
-      if (rpcError) {
-        console.error('删除账户失败:', rpcError);
-        throw new Error(rpcError.message || '删除账户失败');
+      if (!result.success) {
+        console.error('删除账户失败:', result.error);
+        throw new Error(result.error?.message || '删除账户失败');
       }
 
-      // 删除成功后，清理前端认证状态
-      // 由于后端已经删除了 auth.users 记录，前端 session 会自动失效
-      // 但我们需要手动清理本地状态
-      await supabase.auth.signOut();
+      // 删除成功后，认证状态会自动清理
 
       // 等待一下确保状态更新
       await new Promise(resolve => setTimeout(resolve, 100));

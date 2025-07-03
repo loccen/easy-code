@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/stores/authStore';
 import { Layout } from '@/components/layout';
-import { supabase } from '@/lib/supabase';
 import { getActiveCategories } from '@/lib/categories';
 import { Button, Card, Input, Loading } from '@/components/ui';
+import { apiClient } from '@/lib/api/fetch-client';
 import { Category, Project } from '@/types';
 
 export default function ProjectEditPage() {
@@ -59,20 +59,17 @@ export default function ProjectEditPage() {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .eq('seller_id', user.id) // 确保只能编辑自己的项目
-        .single();
+      const result = await apiClient.get(`/seller/projects/${projectId}`);
 
-      if (error) {
-        if (error.code === 'PGRST116') {
+      if (!result.success) {
+        if (result.error?.code === 'NOT_FOUND') {
           setError('项目不存在或您没有权限编辑此项目');
           return;
         }
-        throw error;
+        throw new Error(result.error?.message || '获取项目信息失败');
       }
+
+      const data = result.data;
 
       setProject(data);
       setFormData({
@@ -153,24 +150,25 @@ export default function ProjectEditPage() {
     const uploadedUrls: string[] = [];
 
     for (const file of newFiles) {
-      // const fileExt = file.name.split('.').pop();
-      const fileName = `${projectId}/${Date.now()}-${file.name}`;
-      const filePath = `projects/${fileName}`;
+      // 使用存储API上传文件
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucket', 'project-files');
+      formData.append('projectId', projectId);
 
-      const { error: uploadError } = await supabase.storage
-        .from('project-files')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      const result = await apiClient.request('/storage/upload', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // 不设置Content-Type，让浏览器自动设置multipart/form-data
+        },
+      });
 
-      if (uploadError) throw uploadError;
+      if (!result.success) {
+        throw new Error(result.error?.message || `文件 ${file.name} 上传失败`);
+      }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('project-files')
-        .getPublicUrl(filePath);
-
-      uploadedUrls.push(publicUrl);
+      uploadedUrls.push(result.data.url);
     }
 
     return uploadedUrls;
@@ -189,23 +187,30 @@ export default function ProjectEditPage() {
       const filePath = `projects/${projectFolder}/${fileName}`;
 
       // 从存储中删除文件
-      const { error: deleteError } = await supabase.storage
-        .from('project-files')
-        .remove([filePath]);
+      const deleteResult = await apiClient.delete('/storage/delete', {
+        body: {
+          bucket: 'project-files',
+          path: filePath,
+          projectId: project.id,
+        },
+      });
 
-      if (deleteError) throw deleteError;
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.error?.message || '删除文件失败');
+      }
 
       // 从当前文件列表中移除
       const updatedFiles = currentFiles.filter(url => url !== fileUrl);
       setCurrentFiles(updatedFiles);
 
-      // 更新数据库
-      const { error: updateError } = await supabase
-        .from('projects')
-        .update({ file_urls: updatedFiles })
-        .eq('id', project.id);
+      // 更新数据库中的文件列表
+      const updateResult = await apiClient.put(`/seller/projects/${project.id}`, {
+        file_urls: updatedFiles,
+      });
 
-      if (updateError) throw updateError;
+      if (!updateResult.success) {
+        throw new Error(updateResult.error?.message || '更新项目文件列表失败');
+      }
 
     } catch (err) {
       console.error('删除文件失败:', err);
@@ -273,12 +278,11 @@ export default function ProjectEditPage() {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('projects')
-        .update(updateData)
-        .eq('id', project.id);
+      const result = await apiClient.put(`/seller/projects/${project.id}`, updateData);
 
-      if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.error?.message || '更新项目失败');
+      }
 
       // 清空新文件选择
       setNewFiles([]);

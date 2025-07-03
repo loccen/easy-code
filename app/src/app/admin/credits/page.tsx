@@ -7,7 +7,7 @@ import Layout from '@/components/layout/Layout';
 import { Button, Card, Input } from '@/components/ui';
 import { getAllCreditConfigs, searchUsers, getUserWithCredits, adminAdjustUserCredits, getAdminCreditOperations } from '@/lib/credits';
 import { refreshCreditBalance } from '@/components/CreditBalance';
-import { supabase } from '@/lib/supabase';
+import { apiClient } from '@/lib/api/fetch-client';
 import type { CreditConfig, UserSearchResult, UserWithCredits, AdminCreditOperation } from '@/types';
 import { Save, RefreshCw, Settings, Search, Plus, Minus, User, History } from 'lucide-react';
 
@@ -81,16 +81,16 @@ export default function AdminCreditsPage() {
       setSuccess('');
 
       // 批量更新配置
-      for (const config of configs) {
-        const { error } = await supabase
-          .from('credit_configs')
-          .update({
-            config_value: config.config_value,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', config.id);
+      const result = await apiClient.put('/admin/credit-configs', {
+        configs: configs.map(config => ({
+          id: config.id,
+          config_key: config.config_key,
+          config_value: config.config_value,
+        })),
+      });
 
-        if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.error?.message || '保存积分配置失败');
       }
 
       setSuccess('积分配置已保存！');

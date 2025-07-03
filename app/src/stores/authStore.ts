@@ -23,41 +23,36 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   initialized: false,
 
   setUser: (user) => set({ user }),
-  
+
   setLoading: (loading) => set({ loading }),
 
   initialize: async () => {
     try {
       set({ loading: true });
 
-      // 获取当前会话
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        // 获取完整用户信息
-        const user = await getCurrentUser();
-        set({ user, loading: false, initialized: true });
+      // 检查是否有保存的token
+      const token = authTokenManager.getToken();
+
+      if (token) {
+        // 尝试获取当前用户信息
+        const response = await authService.getCurrentUser();
+
+        if (response.success && response.data) {
+          set({ user: response.data, loading: false, initialized: true });
+        } else {
+          // token无效，清除并设置为未登录状态
+          authTokenManager.setToken(null);
+          set({ user: null, loading: false, initialized: true });
+        }
       } else {
+        // 没有token，设置为未登录状态
         set({ user: null, loading: false, initialized: true });
       }
 
-      // 监听认证状态变化
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          const user = await getCurrentUser();
-          set({ user, loading: false });
-        } else if (event === 'SIGNED_OUT') {
-          set({ user: null, loading: false });
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          const user = await getCurrentUser();
-          set({ user, loading: false });
-        }
-      });
-
     } catch (error) {
       console.error('初始化认证状态失败:', error);
+      // 出错时清除token并设置为未登录状态
+      authTokenManager.setToken(null);
       set({ user: null, loading: false, initialized: true });
     }
   },
@@ -65,21 +60,39 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   signOut: async () => {
     try {
       set({ loading: true });
-      await authSignOut();
+
+      // 调用登出API
+      await authService.logout();
+
+      // 清除本地状态
       set({ user: null, loading: false });
     } catch (error) {
       console.error('登出失败:', error);
-      set({ loading: false });
+
+      // 即使API调用失败，也清除本地状态
+      authTokenManager.setToken(null);
+      set({ user: null, loading: false });
+
       throw error;
     }
   },
 
   refreshUser: async () => {
     try {
-      const user = await getCurrentUser();
-      set({ user });
+      const response = await authService.getCurrentUser();
+
+      if (response.success && response.data) {
+        set({ user: response.data });
+      } else {
+        // 如果获取用户信息失败，可能token已过期
+        authTokenManager.setToken(null);
+        set({ user: null });
+      }
     } catch (error) {
       console.error('刷新用户信息失败:', error);
+      // 出错时清除认证状态
+      authTokenManager.setToken(null);
+      set({ user: null });
     }
   },
 }));

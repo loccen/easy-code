@@ -8,6 +8,7 @@ import { Button, Card, Badge, Loading, Input } from '@/components/ui';
 import { useAuth } from '@/stores/authStore';
 import { useDialogContext } from '@/components/DialogProvider';
 import { getAllCategories } from '@/lib/categories';
+import { getProjectStatsForAdmin, deleteProjectAsAdmin } from '@/lib/projects';
 import { Project, Category } from '@/types';
 import { projectsService } from '@/lib/services/projects.service';
 
@@ -66,7 +67,7 @@ export default function AdminProjectsPage() {
         status: selectedStatus || undefined,
         categoryId: selectedCategory || undefined,
         search: searchQuery || undefined,
-        sortBy: 'updated_at',
+        sortBy: 'created_at',
         sortOrder: 'desc',
       });
 

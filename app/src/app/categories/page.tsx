@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout';
-import { supabase } from '@/lib/supabase';
 import { Card, Loading } from '@/components/ui';
+import { apiClient } from '@/lib/api/fetch-client';
 import { Category } from '@/types';
 
 export default function CategoriesPage() {
@@ -19,19 +19,17 @@ export default function CategoriesPage() {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
 
-      if (error) throw error;
+      const result = await apiClient.get('/categories');
 
-      setCategories(data || []);
+      if (!result.success) {
+        throw new Error(result.error?.message || '加载分类失败');
+      }
+
+      setCategories(result.data || []);
     } catch (err) {
       console.error('加载分类失败:', err);
-      setError('加载分类失败');
+      setError(err instanceof Error ? err.message : '加载分类失败');
     } finally {
       setLoading(false);
     }

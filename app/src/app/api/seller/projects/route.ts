@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServerSupabaseClient();
 
     // 构建查询
-    let query = supabase
+    const query = supabase
       .from('projects')
       .select(`
         *,

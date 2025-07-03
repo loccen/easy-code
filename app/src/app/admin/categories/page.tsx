@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/stores/authStore';
 import { useDialogContext } from '@/components/DialogProvider';
 import { Layout } from '@/components/layout';
-import { supabase } from '@/lib/supabase';
 import { Button, Card, Input, Loading } from '@/components/ui';
+import { apiClient } from '@/lib/api/fetch-client';
 import { Category } from '@/types';
 
 export default function CategoriesManagePage() {
@@ -51,21 +51,17 @@ export default function CategoriesManagePage() {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('categories')
-        .select(`
-          *,
-          parent:categories!parent_id(name)
-        `)
-        .order('sort_order');
 
-      if (error) throw error;
+      const result = await apiClient.get('/categories', { include_inactive: true });
 
-      setCategories(data || []);
+      if (!result.success) {
+        throw new Error(result.error?.message || '加载分类失败');
+      }
+
+      setCategories(result.data || []);
     } catch (err) {
       console.error('加载分类失败:', err);
-      setError('加载分类失败');
+      setError(err instanceof Error ? err.message : '加载分类失败');
     } finally {
       setLoading(false);
     }
@@ -137,36 +133,35 @@ export default function CategoriesManagePage() {
 
       if (editingCategory) {
         // 更新分类
-        const { error } = await supabase
-          .from('categories')
-          .update({
-            name: formData.name,
-            slug: formData.slug,
-            description: formData.description || null,
-            parent_id: formData.parent_id || null,
-            icon: formData.icon || null,
-            sort_order: formData.sort_order,
-            is_active: formData.is_active,
-          })
-          .eq('id', editingCategory.id);
+        const result = await apiClient.put(`/categories/${editingCategory.id}`, {
+          name: formData.name,
+          slug: formData.slug,
+          description: formData.description || null,
+          parent_id: formData.parent_id || null,
+          icon: formData.icon || null,
+          sort_order: formData.sort_order,
+          is_active: formData.is_active,
+        });
 
-        if (error) throw error;
+        if (!result.success) {
+          throw new Error(result.error?.message || '更新分类失败');
+        }
         setSuccess('分类更新成功！');
       } else {
         // 创建分类
-        const { error } = await supabase
-          .from('categories')
-          .insert({
-            name: formData.name,
-            slug: formData.slug,
-            description: formData.description || null,
-            parent_id: formData.parent_id || null,
-            icon: formData.icon || null,
-            sort_order: formData.sort_order,
-            is_active: formData.is_active,
-          });
+        const result = await apiClient.post('/categories', {
+          name: formData.name,
+          slug: formData.slug,
+          description: formData.description || null,
+          parent_id: formData.parent_id || null,
+          icon: formData.icon || null,
+          sort_order: formData.sort_order,
+          is_active: formData.is_active,
+        });
 
-        if (error) throw error;
+        if (!result.success) {
+          throw new Error(result.error?.message || '创建分类失败');
+        }
         setSuccess('分类创建成功！');
       }
 
@@ -182,54 +177,20 @@ export default function CategoriesManagePage() {
     try {
       setError('');
 
-      // 首先检查是否有项目使用该分类
-      const { data: projects, error: checkError } = await supabase
-        .from('projects')
-        .select('id, title')
-        .eq('category_id', category.id);
+      // 直接调用删除API，让后端处理检查逻辑
+      const result = await apiClient.delete(`/categories/${category.id}`);
 
-      if (checkError) throw checkError;
-
-      // 检查是否有子分类
-      const { data: subCategories, error: subError } = await supabase
-        .from('categories')
-        .select('id, name')
-        .eq('parent_id', category.id);
-
-      if (subError) throw subError;
-
-      // 如果有依赖项目或子分类，显示详细信息并询问用户
-      if (projects && projects.length > 0) {
-        const projectNames = projects.slice(0, 3).map(p => p.title).join('、');
-        const moreText = projects.length > 3 ? `等${projects.length}个项目` : '';
-
-        const confirmed1 = await confirm({
-          title: '分类正在使用中',
-          message: `分类"${category.name}"正在被以下项目使用：${projectNames}${moreText}\n\n删除此分类将导致这些项目失去分类信息。\n建议先将这些项目移动到其他分类，或者禁用此分类而不是删除。\n\n确定要强制删除吗？`,
-          confirmText: '强制删除',
-          cancelText: '取消',
-          variant: 'danger'
-        });
-
-        if (!confirmed1) return;
+      if (!result.success) {
+        // 如果是冲突错误，显示详细信息
+        if (result.error?.code === 'CONFLICT') {
+          setError(result.error.message || '删除分类失败');
+          return;
+        }
+        throw new Error(result.error?.message || '删除分类失败');
       }
 
-      if (subCategories && subCategories.length > 0) {
-        const subNames = subCategories.map(c => c.name).join('、');
-
-        const confirmed2 = await confirm({
-          title: '包含子分类',
-          message: `分类"${category.name}"包含以下子分类：${subNames}\n\n删除此分类将同时删除所有子分类。\n\n确定要继续吗？`,
-          confirmText: '继续删除',
-          cancelText: '取消',
-          variant: 'danger'
-        });
-
-        if (!confirmed2) return;
-      }
-
-      // 最终确认
-      const finalConfirmed = await confirm({
+      // 确认删除
+      const confirmed = await confirm({
         title: '删除分类',
         message: `确定要删除分类"${category.name}"吗？\n\n此操作不可撤销。`,
         confirmText: '删除',
@@ -237,35 +198,7 @@ export default function CategoriesManagePage() {
         variant: 'danger'
       });
 
-      if (!finalConfirmed) return;
-
-      // 如果有项目使用该分类，先将项目的分类设为null
-      if (projects && projects.length > 0) {
-        const { error: updateError } = await supabase
-          .from('projects')
-          .update({ category_id: null })
-          .eq('category_id', category.id);
-
-        if (updateError) throw updateError;
-      }
-
-      // 如果有子分类，先删除子分类
-      if (subCategories && subCategories.length > 0) {
-        const { error: deleteSubError } = await supabase
-          .from('categories')
-          .delete()
-          .eq('parent_id', category.id);
-
-        if (deleteSubError) throw deleteSubError;
-      }
-
-      // 最后删除分类本身
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', category.id);
-
-      if (error) throw error;
+      if (!confirmed) return;
 
       setSuccess('分类删除成功！');
       await loadCategories();
@@ -278,13 +211,12 @@ export default function CategoriesManagePage() {
   const toggleActive = async (category: Category) => {
     try {
       setError('');
-      
-      const { error } = await supabase
-        .from('categories')
-        .update({ is_active: !category.is_active })
-        .eq('id', category.id);
 
-      if (error) throw error;
+      const result = await apiClient.patch(`/categories/${category.id}/toggle`);
+
+      if (!result.success) {
+        throw new Error(result.error?.message || '更新分类状态失败');
+      }
 
       setSuccess(`分类已${category.is_active ? '禁用' : '启用'}！`);
       await loadCategories();

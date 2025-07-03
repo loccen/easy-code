@@ -95,3 +95,72 @@ export async function POST(request: NextRequest) {
     return createApiResponse(errorResponse);
   }
 }
+
+/**
+ * DELETE /api/auth/avatar
+ * 删除头像
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const authContext = await getAuthContext(request);
+
+    if (!authContext.isAuthenticated || !authContext.user) {
+      return createApiResponse(
+        ResponseBuilder.error(ErrorCode.UNAUTHORIZED, '请先登录')
+      );
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    // 获取当前头像URL
+    const { data: profileData, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('avatar_url')
+      .eq('user_id', authContext.user.id)
+      .single();
+
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('获取用户资料失败:', profileError);
+      throw profileError;
+    }
+
+    const currentAvatarUrl = profileData?.avatar_url;
+
+    // 更新用户资料，移除头像URL
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .upsert({
+        user_id: authContext.user.id,
+        avatar_url: null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+
+    if (updateError) {
+      console.error('更新头像URL失败:', updateError);
+      throw updateError;
+    }
+
+    // 删除存储中的头像文件（如果是上传的文件）
+    if (currentAvatarUrl && currentAvatarUrl.includes('user-uploads/avatars/')) {
+      const filePath = currentAvatarUrl.split('/').slice(-2).join('/');
+      const { error: deleteError } = await supabase.storage
+        .from('user-uploads')
+        .remove([filePath]);
+
+      if (deleteError) {
+        console.error('删除头像文件失败:', deleteError);
+        // 不抛出错误，因为数据库已经更新成功
+      }
+    }
+
+    return createApiResponse(
+      ResponseBuilder.success({
+        message: '头像删除成功'
+      })
+    );
+  } catch (error) {
+    console.error('删除头像API错误:', error);
+    const errorResponse = handleApiError(error);
+    return createApiResponse(errorResponse);
+  }
+}

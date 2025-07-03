@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/stores/authStore';
 import { Layout } from '@/components/layout';
-import { supabase } from '@/lib/supabase';
 import { Button, Card, Input, Loading } from '@/components/ui';
 import AvatarUpload from '@/components/AvatarUpload';
+import { apiClient } from '@/lib/api/fetch-client';
 import { UserProfile } from '@/types';
 
 export default function ProfilePage() {
@@ -42,17 +42,14 @@ export default function ProfilePage() {
     
     try {
       setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        throw error;
+      const result = await apiClient.get('/users/profile');
+
+      if (!result.success) {
+        throw new Error(result.error?.message || '获取用户资料失败');
       }
 
+      const data = result.data;
       if (data) {
         setProfile(data);
         setFormData({
@@ -95,17 +92,11 @@ export default function ProfilePage() {
       setError('');
       setSuccess('');
 
-      const profileData = {
-        user_id: user.id,
-        ...formData,
-        updated_at: new Date().toISOString(),
-      };
+      const result = await apiClient.put('/users/profile', formData);
 
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert(profileData, { onConflict: 'user_id' });
-
-      if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.error?.message || '更新资料失败');
+      }
 
       setSuccess('资料更新成功！');
       await loadProfile(); // 重新加载资料
